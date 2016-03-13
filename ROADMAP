@@ -1,0 +1,57 @@
+-------------------------------
+Project: EurySPACE
+Version: 1.0.0
+Date: 2016/13/03
+-------------------------------
+
+
+-------------------------------
+            TASKS
+-------------------------------
+Category |   ID   |    Name    | Priority | Pre-Requisites | Duration | Details
+-------------------------------
+ConFiG   |CFG.0001| Tools      | 3        | None           | TBD      | select and integrate auto-configuration tools (fusesoc / linux embedded / ...)
+ConFiG   |CFG.0002| HW         | 3        | CFG.0001, TBD  | TBD      | define HW configuration samples
+ConFiG   |CFG.0003| SW         | 3        | CFG.0001, TBD  | TBD      | define SW configuration samples
+-------------------------------
+DOCument |DOC.0001| DDD        | 2        | STW.x, HDW.x   | TBD      | write documentation on architecture, algorithms, classes, models, ...
+DOCument |DOC.0002| ICD        | 2        | STW.x, HDW.x   | TBD      | write documentation on API, files formats, ...
+DOCument |DOC.0003| TRP        | 2        | STW.x, HDW.x   | TBD      | execute test campaigns and write test reports
+DOCument |DOC.0004| UGD        | 2        | STW.x, HDW.x   | TBD      | write user and admin documentation (installation, usage, configuration)
+-------------------------------
+GeoInfoS |GIS.0001| DataSets   | 3        | None           | TBD      | identify and extract interesting datasets from Open Street Map
+GeoInfoS |GIS.0002| Convert    | 3        | GIS.0001       | TBD      | validate and convert dataset to shapefile, GML, ... formats
+-------------------------------
+HarDWare |HDW.0001| DPM        | 1        | None           | TBD      | define Digital Processing Module components and layout
+HarDWare |HDW.0002| APM        | 1        | None           | TBD      | define Analog Processing Module components and layout
+HarDWare |HDW.0003| IUI        | 1        | None           | TBD      | define Information Universe Interface components and layout
+HarDWare |HDW.0004| NAV        | 1        | None           | TBD      | define Navigation Module components and layout
+HarDWare |HDW.0005| COM        | 1        | None           | TBD      | define Communication Module components and layout
+HarDWare |HDW.0006| OBS        | 1        | None           | TBD      | define Observation Module components and layout
+-------------------------------
+SofTWare |STW.0001| Ground     | 1        | None           | TBD      | define and develop Ground Segment software components
+SofTWare |STW.0002| Space      | 1        | None           | TBD      | define and develop Space Segment software components
+SofTWare |STW.0003| User       | 1        | None           | TBD      | define and develop User Segment software components
+SofTWare |STW.0004| Test       | 1        | None           | TBD      | define and develop Test Center software components
+-------------------------------
+SIMulat  |SIM.0001| Layers     | 2        | None           | TBD      | simulate communication layers and performances
+-------------------------------
+TeST     |TST.0001| DataSets   | 2        | SIM.0001       | TBD      | define and validate layers test datasets
+TeST     |TST.0002| Tools      | 2        | None           | TBD      | select, integrate and develop auto-test tools (REDPitaya, jenkins, ...)
+TeST     |TST.0003| Software   | 2        | None           | TBD      | define and prepare test campaigns and tools config
+-------------------------------
+
+
+-------------------------------
+            GANTT
+-------------------------------
+FIXME: TBD
+-------------------------------
+
+
+-------------------------------
+           STATUS
+-------------------------------
+FIXME: TBD
+-------------------------------
+
