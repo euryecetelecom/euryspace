@@ -121,6 +121,8 @@ iui = Information Universe Interface
                 \ localisation
                 \ observation
                 \ telecommunication
+            \ test
+                \ hello_universe
         \ user_segment
             \ core
                 \ display
