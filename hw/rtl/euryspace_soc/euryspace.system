@@ -1,0 +1,13 @@
+SAPI=1
+[main]
+name = euryspace
+description = "EurySPACE system - Altera/Terasic DE0-Nano board"
+
+backend = quartus
+
+[quartus]
+family = "Cyclone IV E"
+device = EP4CE22F17C6
+sdc_files = data/euryspace.sdc
+tcl_files = data/pinmap.tcl
+            data/options.tcl

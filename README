@@ -1,0 +1,167 @@
+-------------------------------
+Project: EurySPACE
+Version: 1.0.0
+Date: 2016/13/03
+-------------------------------
+Author(s):
+Guillaume REMBERT, guillaume.rembert@euryecetelecom.com
+-------------------------------
+License:
+MIT - Please read LICENSE file for more information
+-------------------------------
+
+
+-------------------------------
+         README INDEX
+-------------------------------
+0 - Project Presentation
+-------------------------------
+This section presents the EurySPACE project.
+Start first by reading these lines.
+-------------------------------
+1 - Repository Structure
+-------------------------------
+This section presents the repository structure.
+Read these lines to understand the files layout.
+-------------------------------
+2: Integration Methodology
+-------------------------------
+This section presents a methodology to be used to integrate the solution.
+Read these lines to check and/or define your integration plan.
+-------------------------------
+3: Development Guidelines
+-------------------------------
+This section presents coding style conventions.
+Read these lines to modify and/or extend the system.
+-------------------------------
+4: Quick Start
+-------------------------------
+This section summarizes what is needed to setup and run the solution.
+Read these lines to build, install and start the system.
+-------------------------------
+
+
+-------------------------------
+ PART 0 - PROJECT PRESENTATION
+-------------------------------
+FIXME: TBD / Features, supported platforms, etc
+-------------------------------
+
+
+-------------------------------
+ PART 1 - REPOSITORY STRUCTURE
+-------------------------------
+\ cfg (ConFiGuration): configuration files
+-------------------------------
+    \ hw (HardWare): TBD
+    \ sw (SoftWare): TBD
+-------------------------------
+\ doc (DOCumentation): documentation
+-------------------------------
+    \ ddd (Detailed Design Document): architecture, algorithms and design details
+    \ icd (Interface Control Document): API, internal and external files formats description
+    \ trp (Test RePorts): stable releases test reports
+    \ ugd (User GuiDe): installation, configuration and use guide
+-------------------------------
+\ gis (Geographical Information System): GIS data
+-------------------------------
+    \ gml (Geographical Markup Language): TBD
+    \ shp (SHaPe Files): TBD
+-------------------------------
+\ hw (HardWare): hardware data
+-------------------------------
+    \ bom (Bill Of Materials)
+    \ cad (Computer Aided Design)
+    \ dts (DaTaSheets)
+    \ grb (GeRBers)
+    \ rtl (Register Transfer Level)
+        \ ccsds_rxtx (CCSDS Receiver-Emitter)
+        \ euryspace_soc (EURYSPACE System On Chip)
+----
+apm = Analog Processing Module
+dpm = Digital Processing Module
+iui = Information Universe Interface
+-------------------------------
+\ sim (SIMulation): simulation tools and data-sets
+-------------------------------
+    \ dat (raw DATa)
+    \ grc (GnuRadio Companion)
+    \ oct (OCTave)
+    \ qemu (QEMU)
+    \ smp (SaMPles)
+-------------------------------
+\ sw (SoftWare): software data
+-------------------------------
+    \ bin (BINaries): qualified binaries
+        \ RELEASE_VERSION_X.XX.XX
+            \ SOFTWARE_NAME-or1k_X.XX.XX-gcc_X.XX.XX-newlib_X.XX.XX
+    \ pkg (PacKaGes): platform specific installation packages
+        \ RELEASE_VERSION_X.XX.XX
+            \ SOFTWARE_NAME
+                \ apk: Android
+                \ bsd: BSD Unix
+                \ deb: Debian/Ubuntu Linux
+                \ ios: iOS
+                \ rpm: RedHat/CentOS/Fedora/OpenSUSE Linux
+                \ win: Windows
+    \ src (SouRCes): software source code
+        \ ground_segment
+            \ core
+                \ control
+                \ display
+                \ emission
+                \ process
+                \ reception
+        \ space_segment
+            \ core
+                \ control
+                \ emission
+                \ reception
+            \ application
+                \ localisation
+                \ observation
+                \ telecommunication
+        \ user_segment
+            \ core
+                \ display
+                \ emission
+                \ reception
+            \ application
+                \ localisation
+                \ observation
+                \ telecommunication
+        \ euryspace_test_center
+            \ calibration
+            \ emission
+            \ reception
+-------------------------------
+\ tst (TeST): test tools and data-sets
+-------------------------------
+    \ rtl
+        \ ccsds_rxtx_bench
+        \ euryspace_soc_bench
+    \ sh (SHell)
+        \ euryspace_auto_calibration
+        \ euryspace_auto_test
+-------------------------------
+
+
+-------------------------------
+PART 2: INTEGRATION METHODOLOGY
+-------------------------------
+FIXME: TBD / Specs -> Design -> Code -> Test
+-------------------------------
+
+
+-------------------------------
+ PART 3: DEVELOPMENT GUIDELINES
+-------------------------------
+FIXME: TBD / variables / functions / comments / ...
+-------------------------------
+
+
+-------------------------------
+      PART 4: QUICK START
+-------------------------------
+FIXME: TBD / HW and SW requirements, OS setup, build, install, test
+-------------------------------

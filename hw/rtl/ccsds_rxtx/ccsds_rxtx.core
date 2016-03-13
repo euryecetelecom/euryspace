@@ -1,0 +1,36 @@
+CAPI=1
+[main]
+description = EurySPACE CCSDS RX/TX with wishbone interface
+
+[vhdl]
+src_files =
+ ccsds_rxtx_bench.vhd
+ ccsds_rxtx_top.vhd
+ ccsds_rxtx_constants.vhd
+ ccsds_rxtx_functions.vhd
+ ccsds_rxtx_parameters.vhd
+# ccsds_rxtx_serdes.vhd
+ ccsds_rxtx_buffer.vhd
+ ccsds_rx.vhd
+ ccsds_rx_datalink_layer.vhd
+ ccsds_rx_physical_layer.vhd
+ ccsds_tx.vhd
+ ccsds_tx_datalink_layer.vhd
+ ccsds_tx_physical_layer.vhd
+ ccsds_tx_framer.vhd
+ ccsds_tx_header.vhd
+ ccsds_tx_trailer.vhd
+# ccsds_rxtx_layer_1.vhdl
+# ccsds_rxtx_layer_2.vhdl
+# ccsds_rxtx_codec_ecc_crc.vhdl
+# ccsds_rxtx_codec_ecc_reed_solomon.vhdl
+# ccsds_rxtx_codec_ecc_conv_codes.vhdl
+# ccsds_rxtx_mapper_gray.vhdl
+# ccsds_rxtx_mapper_psk.vhdl
+# ccsds_rxtx_mapper_qam.vhdl
+# ccsds_rxtx_modulator.vhdl
+# ccsds_rxtx_demodulator.vhdl
+# ccsds_rxtx_filter_rrc.vhdl
+# ccsds_rxtx_estim_symbol_timing.vhdl
+# ccsds_rxtx_estim_phase.vhdl
+# ccsds_rxtx_filter_rrc.vhdl
