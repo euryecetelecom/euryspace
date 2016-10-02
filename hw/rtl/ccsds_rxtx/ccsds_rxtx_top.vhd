@@ -10,7 +10,7 @@
 ---- Synchronized with rising edge of external clocks
 -------------------------------
 ---- Author(s):
----- Guillaume REMBERT, guillaume.rembert@euryecetelecom.com
+---- Guillaume REMBERT
 -------------------------------
 ---- Licence:
 ---- MIT

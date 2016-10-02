@@ -10,7 +10,7 @@
 ---- 4: generate rx/tx external data and samples signals
 -------------------------------
 ---- Author(s):
----- Guillaume Rembert , guillaume.rembert@euryecetelecom.com
+---- Guillaume Rembert
 -------------------------------
 ---- Licence:
 ---- MIT

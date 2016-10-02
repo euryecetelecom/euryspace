@@ -7,7 +7,7 @@
 ---- par -> ser require N cycles to finish
 -------------------------------
 ---- Author(s):
----- Guillaume Rembert , guillaume.rembert@euryecetelecom.com
+---- Guillaume Rembert
 -------------------------------
 ---- Licence:
 ---- MIT

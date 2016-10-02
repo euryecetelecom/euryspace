@@ -6,7 +6,7 @@
 ---- Project / design specific parameters
 -------------------------------
 ---- Author(s):
----- Guillaume Rembert , guillaume.rembert@euryecetelecom.com
+---- Guillaume Rembert
 -------------------------------
 ---- Licence:
 ---- MIT

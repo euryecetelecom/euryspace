@@ -6,7 +6,7 @@
 ---- TO BE DONE
 -------------------------------
 ---- Author(s):
----- Guillaume REMBERT, guillaume.rembert@euryecetelecom.com
+---- Guillaume REMBERT
 -------------------------------
 ---- Licence:
 ---- MIT

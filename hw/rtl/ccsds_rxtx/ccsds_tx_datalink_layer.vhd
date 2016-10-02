@@ -6,7 +6,7 @@
 ---- Receive and store datagram from data_par_i and data_ser_i when data_valid_i = '1'
 -------------------------------
 ---- Author(s):
----- Guillaume REMBERT, guillaume.rembert@euryecetelecom.com
+---- Guillaume REMBERT
 -------------------------------
 ---- Licence:
 ---- MIT
