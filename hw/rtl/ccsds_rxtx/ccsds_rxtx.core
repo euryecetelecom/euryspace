@@ -9,17 +9,18 @@ src_files =
  ccsds_rxtx_constants.vhd
  ccsds_rxtx_functions.vhd
  ccsds_rxtx_parameters.vhd
-# ccsds_rxtx_serdes.vhd
  ccsds_rxtx_buffer.vhd
+ ccsds_rxtx_crc.vhd
  ccsds_rx.vhd
  ccsds_rx_datalink_layer.vhd
  ccsds_rx_physical_layer.vhd
  ccsds_tx.vhd
+ ccsds_tx_manager.vhd
  ccsds_tx_datalink_layer.vhd
  ccsds_tx_physical_layer.vhd
  ccsds_tx_framer.vhd
  ccsds_tx_header.vhd
- ccsds_tx_trailer.vhd
+ ccsds_tx_footer.vhd
 # ccsds_rxtx_layer_1.vhdl
 # ccsds_rxtx_layer_2.vhdl
 # ccsds_rxtx_codec_ecc_crc.vhdl

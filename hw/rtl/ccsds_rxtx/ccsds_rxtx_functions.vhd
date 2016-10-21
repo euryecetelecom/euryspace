@@ -13,6 +13,7 @@
 -------------------------------
 ---- Changes list:
 ---- 2015/12/28: initial release
+---- 2016/10/20: added reverse_std_logic_vector function + rework sim_generate_random_std_logic_vector for > 32 bits vectors
 -------------------------------
 
 -- libraries used
@@ -22,21 +23,40 @@ use ieee.numeric_std.all;
 use ieee.math_real.all;
 
 package ccsds_rxtx_functions is
--- simulation : testbench only functions
-  procedure simGetRandomBitVector(vectorSize : in integer; seed1 : inout positive; seed2 : inout positive; result : out std_logic_vector);
--- synthetizable functions
+-- synthesable functions
+  function reverse_std_logic_vector (input: in std_logic_vector) return std_logic_vector;
+-- simulation / testbench only functions
+  procedure sim_generate_random_std_logic_vector(vector_size : in integer; seed1 : inout positive; seed2 : inout positive; result : out std_logic_vector);
 end ccsds_rxtx_functions;
 
 package body ccsds_rxtx_functions is
-  procedure simGetRandomBitVector(vectorSize : in integer; seed1 : inout positive; seed2 : inout positive; result : out std_logic_vector) is
-    variable rand : real := 0.0;
+
+  function reverse_std_logic_vector (input: in std_logic_vector) return std_logic_vector is
+  variable result: std_logic_vector(input'RANGE);
+  alias output: std_logic_vector(input'REVERSE_RANGE) is input;
   begin
---    report "DEBUG: Seeds values => seed1 = " & positive'image(seed1) & " seed2 = " &  positive'image(seed2) severity warning;
-    uniform(seed1, seed2, rand);
---    report "DEBUG: Random value => rand = " & real'image(rand) severity warning;
---    report "DEBUG: Seeds values => seed1 = " & positive'image(seed1) & " seed2 = " &  positive'image(seed2) severity warning;
-    rand := rand*(2**(real(vectorSize)-1.0));
---    report "DEBUG: Random value => rand = " & real'image(rand) severity warning;
-    result := std_logic_vector(to_unsigned(integer(rand),vectorSize));
-  end simGetRandomBitVector;
+    for i in output'RANGE loop
+      result(i) := output(i);
+    end loop;
+    return result;
+  end;
+  
+  procedure sim_generate_random_std_logic_vector(vector_size : in integer; seed1 : inout positive; seed2 : inout positive; result : out std_logic_vector) is
+    variable rand: real := 0.0;
+    variable temp: std_logic_vector(31 downto 0);
+  begin
+    if (vector_size <= 32) then
+      uniform(seed1, seed2, rand);
+      rand := rand*(2**(real(vector_size)-1.0));
+      result := std_logic_vector(to_unsigned(integer(rand),vector_size));
+    else
+      uniform(seed1, seed2, rand);
+      for i in 0 to vector_size-1 loop
+        uniform(seed1, seed2, rand);
+        rand := rand*(2**(real(32)-1.0));
+        temp := std_logic_vector(to_unsigned(integer(rand),32));
+        result(i) := temp(i mod 32);
+      end loop;
+    end if;
+  end sim_generate_random_std_logic_vector;
 end ccsds_rxtx_functions;

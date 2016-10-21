@@ -16,5 +16,5 @@
 -------------------------------
 
 package ccsds_rxtx_constants is
-	constant TX_OK: integer := 1; -- datalink ok
+	constant RXTX_CST: integer := 1; -- DUMMY USELESS CONSTANT
 end ccsds_rxtx_constants;

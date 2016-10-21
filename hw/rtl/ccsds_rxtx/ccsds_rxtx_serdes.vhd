@@ -4,7 +4,7 @@
 ---- Version: 1.0.0
 ---- Description:
 ---- This is the data serialiser/deserialiser
----- par -> ser require N cycles to finish
+---- requires CCSDS_RXTX_SERDES_DEPTH clk cycles to finish
 -------------------------------
 ---- Author(s):
 ---- Guillaume Rembert
@@ -51,13 +51,13 @@ architecture rtl of ccsds_rxtx_serdes is
 --=============================================================================
   begin
     --=============================================================================
-    -- Begin of serializerp
+    -- Begin of par2serp
     -- Serialization of parrallel data received starting with MSB
     --=============================================================================
     -- read: clk_par_i, rst_i, data_par_i
     -- write: data_ser_o
     -- r/w: 
-    SERIALIZERP : process (clk_par_i)
+    PAR2SERP : process (clk_par_i)
       variable serdes_pnt: integer range 0 to CCSDS_RXTX_SERDES_DEPTH-1 := CCSDS_RXTX_SERDES_DEPTH-1;
       begin
         -- on each clock rising edge
@@ -81,13 +81,13 @@ architecture rtl of ccsds_rxtx_serdes is
         end if;
       end process;
     --=============================================================================
-    -- Begin of deserializerp
+    -- Begin of ser2parp
     -- Serialization of parrallel data received
     --=============================================================================
     -- read: clk_par_i, rst_i
     -- write: 
     -- r/w: 
---    DESERIALIZERP : process (clk_ser_i)
+--    SER2PARP : process (clk_ser_i)
 --      begin
 --        data_o <= i_samples_i(0);
 --        clk_o <= clk_i;

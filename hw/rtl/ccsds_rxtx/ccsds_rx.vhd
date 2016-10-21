@@ -23,23 +23,23 @@ use ieee.std_logic_1164.all;
 entity ccsds_rx is
   generic (
     CCSDS_RX_PHYS_SIG_QUANT_DEPTH : integer := 16;
-    CCSDS_RX_DATA_OUTPUT_TYPE: integer := 0;
-    CCSDS_RX_DATA_INPUT_TYPE: integer := 0;
     CCSDS_RX_DATA_BUS_SIZE: integer := 32
   );
   port(
     rst_i: in std_logic; -- system reset input
     ena_i: in std_logic; -- system enable input
     clk_i: in std_logic; -- input samples clock
-    i_samples_par_i: in std_logic_vector(CCSDS_RX_PHYS_SIG_QUANT_DEPTH-1 downto 0); -- in-phased parallel complex samples
-    q_samples_par_i: in std_logic_vector(CCSDS_RX_PHYS_SIG_QUANT_DEPTH-1 downto 0); -- quadrature-phased parallel complex samples
-    if_samples_par_i: in std_logic_vector(CCSDS_RX_PHYS_SIG_QUANT_DEPTH-1 downto 0); -- intermediate frequency real parallel samples
-    i_samples_ser_i: in std_logic; -- in-phased serial complex samples
-    q_samples_ser_i: in std_logic; -- quadrature-phased serial complex samples
-    if_samples_ser_i: in std_logic; -- intermediate-frequency serial real samples
-    clk_o: out std_logic; -- received data clock
-    data_par_o: out std_logic_vector(CCSDS_RX_DATA_BUS_SIZE-1 downto 0); -- received data parallel output
-    data_ser_o: out std_logic -- received data serial output
+    i_samples_i: in std_logic_vector(CCSDS_RX_PHYS_SIG_QUANT_DEPTH-1 downto 0); -- in-phased parallel complex samples
+    q_samples_i: in std_logic_vector(CCSDS_RX_PHYS_SIG_QUANT_DEPTH-1 downto 0); -- quadrature-phased parallel complex samples
+    data_next_i: in std_logic; -- next data
+    data_o: out std_logic_vector(CCSDS_RX_DATA_BUS_SIZE-1 downto 0); -- received data parallel output
+    irq_o: out std_logic; -- data ready to be read / IRQ signal
+    data_valid_o: out std_logic; -- data valid
+    -- Monitoring outputs
+    data_buffer_full_o: out std_logic; -- data buffer status indicator
+    frames_buffer_full_o: out std_logic; -- frames buffer status indicator
+    bits_buffer_full_o: out std_logic; -- bits buffer status indicator
+    enabled_o: out std_logic -- enabled status indicator
   );
 end ccsds_rx;
 
@@ -50,12 +50,12 @@ architecture structure of ccsds_rx is
     );
     port(
       clk_i: in std_logic;
-      clk_o: out std_logic;
       rst_i: in std_logic;
-      data_par_i: in std_logic_vector(CCSDS_RX_DATA_BUS_SIZE-1 downto 0);
-      data_ser_i: in std_logic;
-      data_par_o: out std_logic_vector(CCSDS_RX_DATA_BUS_SIZE-1 downto 0);
-      data_ser_o: out std_logic
+      data_i: in std_logic_vector(CCSDS_RX_DATA_BUS_SIZE-1 downto 0);
+      data_o: out std_logic_vector(CCSDS_RX_DATA_BUS_SIZE-1 downto 0);
+      data_buffer_full_o: out std_logic;
+      frames_buffer_full_o: out std_logic;
+      bits_buffer_full_o: out std_logic
     );
   end component;
   component ccsds_rx_physical_layer is
@@ -67,19 +67,13 @@ architecture structure of ccsds_rx is
       clk_i: in std_logic;
       clk_o: out std_logic;
       rst_i: in std_logic;
-      i_samples_par_i: in std_logic_vector(CCSDS_RX_PHYS_SIG_QUANT_DEPTH-1 downto 0);
-      q_samples_par_i: in std_logic_vector(CCSDS_RX_PHYS_SIG_QUANT_DEPTH-1 downto 0);
-      if_samples_par_i: in std_logic_vector(CCSDS_RX_PHYS_SIG_QUANT_DEPTH-1 downto 0);
-      i_samples_ser_i: in std_logic;
-      q_samples_ser_i: in std_logic;
-      if_samples_ser_i: in std_logic;
-      data_par_o: out std_logic_vector(CCSDS_RX_DATA_BUS_SIZE-1 downto 0);
-      data_ser_o: out std_logic
+      i_samples_i: in std_logic_vector(CCSDS_RX_PHYS_SIG_QUANT_DEPTH-1 downto 0);
+      q_samples_i: in std_logic_vector(CCSDS_RX_PHYS_SIG_QUANT_DEPTH-1 downto 0);
+      data_o: out std_logic_vector(CCSDS_RX_DATA_BUS_SIZE-1 downto 0)
     );
   end component;
   
-  signal wire_data_par: std_logic_vector(CCSDS_RX_DATA_BUS_SIZE-1 downto 0);
-  signal wire_data_ser: std_logic;
+  signal wire_data_m: std_logic_vector(CCSDS_RX_DATA_BUS_SIZE-1 downto 0);
   signal wire_clk_m: std_logic;
   signal wire_clk_i: std_logic;
 	
@@ -90,12 +84,12 @@ begin
     )
     port map(
       clk_i => wire_clk_m,
-      clk_o => clk_o,
       rst_i => rst_i,
-      data_par_i => wire_data_par,
-      data_ser_i => wire_data_ser,
-      data_par_o => data_par_o,
-      data_ser_o => data_ser_o
+      data_i => wire_data_m,
+      data_o => data_o,
+      data_buffer_full_o => data_buffer_full_o,
+      frames_buffer_full_o => frames_buffer_full_o,
+      bits_buffer_full_o => bits_buffer_full_o
     );
   rx_physical_layer_1: ccsds_rx_physical_layer
     generic map(
@@ -106,15 +100,11 @@ begin
       clk_i => wire_clk_i,
       clk_o => wire_clk_m,
       rst_i => rst_i,
-      i_samples_par_i => i_samples_par_i,
-      q_samples_par_i => q_samples_par_i,
-      if_samples_par_i => if_samples_par_i,
-      i_samples_ser_i => i_samples_ser_i,
-      q_samples_ser_i => q_samples_ser_i,
-      if_samples_ser_i => if_samples_ser_i,
-      data_par_o => wire_data_par,
-      data_ser_o => wire_data_ser
+      i_samples_i => i_samples_i,
+      q_samples_i => q_samples_i,
+      data_o => wire_data_m
     );
+    
     --=============================================================================
     -- Begin of enablep
     -- Enable/disable clk forwarding
@@ -126,8 +116,10 @@ begin
       begin
         if (ena_i = '1') then
           wire_clk_i <= clk_i;
+          enabled_o <= '1';
         else
           wire_clk_i <= '0';
+          enabled_o <= '0';
         end if;
       end process;
 end structure;

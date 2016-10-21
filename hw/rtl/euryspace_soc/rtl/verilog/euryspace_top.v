@@ -46,6 +46,8 @@ module orpsoc_top #(
         parameter       i2c0_wb_adr_width = 3,
         parameter       spi0_wb_adr_width = 3,
         parameter	ccsds_rxtx0_wb_adr_width = 4,
+        parameter	ccsds_rxtx0_rx_samples_width = 16,
+        parameter	ccsds_rxtx0_tx_samples_width = 16,
         parameter       HV1_SADR = 8'h45
 )(
 	input		sys_clk_pad_i,
@@ -84,19 +86,16 @@ module orpsoc_top #(
 
 `ifdef CCSDS_RXTX0
 	output	 	ccsds_rxtx0_irq_o,
-	input	 	ccsds_rxtx0_rx_i_samples_ser_i,
-	input		ccsds_rxtx0_rx_q_samples_ser_i,
+	input	[ccsds_rxtx0_rx_samples_width-1:0]	ccsds_rxtx0_rx_i_samples_i,
+	input	[ccsds_rxtx0_rx_samples_width-1:0]	ccsds_rxtx0_rx_q_samples_i,
 	input		ccsds_rxtx0_rx_clk_i,
-	output		ccsds_rxtx0_rx_data_ser_o,
-	output		ccsds_rxtx0_rx_clk_o,
-	output 		ccsds_rxtx0_rx_ok_o,
+	output 		ccsds_rxtx0_rx_enabled_o,
 	input		ccsds_rxtx0_tx_data_ser_i,
 	input		ccsds_rxtx0_tx_clk_i,
-	output		ccsds_rxtx0_tx_i_samples_ser_o,
-	output		ccsds_rxtx0_tx_q_samples_ser_o,
-	output		ccsds_rxtx0_tx_samples_valid_o,
+	output	[ccsds_rxtx0_tx_samples_width-1:0]	ccsds_rxtx0_tx_i_samples_o,
+	output	[ccsds_rxtx0_tx_samples_width-1:0]	ccsds_rxtx0_tx_q_samples_o,
 	output		ccsds_rxtx0_tx_clk_o,
-	output 		ccsds_rxtx0_tx_ok_o,	
+	output 		ccsds_rxtx0_tx_enabled_o,
 `endif
 
 `ifdef SPI0
@@ -611,22 +610,19 @@ ccsds_rxtx_top ccsds_rxtx_0 (
 	//RX
 	//Inputs
 	.rx_clk_i	(ccsds_rxtx0_rx_clk_i),
-	.rx_i_samples_ser_i		(ccsds_rxtx0_rx_i_samples_ser_i),
-	.rx_q_samples_ser_i		(ccsds_rxtx0_rx_q_samples_ser_i),
+	.rx_i_samples_i		(ccsds_rxtx0_rx_i_samples_i),
+	.rx_q_samples_i		(ccsds_rxtx0_rx_q_samples_i),
 	//Outputs
-	.rx_data_ser_o	(ccsds_rxtx0_rx_data_ser_o),
-	.rx_clk_o	(ccsds_rxtx0_rx_clk_o),
-	.rx_ok_o	(ccsds_rxtx0_rx_ok_o),
+	.rx_enabled_o	(ccsds_rxtx0_rx_enabled_o),
 	//TX
 	//Inputs
 	.tx_clk_i	(ccsds_rxtx0_tx_clk_i),
 	.tx_data_ser_i	(ccsds_rxtx0_tx_data_ser_i),
 	//Outputs
-	.tx_i_samples_ser_o (ccsds_rxtx0_tx_i_samples_ser_o),
-	.tx_q_samples_ser_o (ccsds_rxtx0_tx_q_samples_ser_o),
-	.tx_samples_valid_o (ccsds_rxtx0_tx_samples_valid_o),
+	.tx_i_samples_o (ccsds_rxtx0_tx_i_samples_o),
+	.tx_q_samples_o (ccsds_rxtx0_tx_q_samples_o),
 	.tx_clk_o (ccsds_rxtx0_tx_clk_o),
-	.tx_ok_o (ccsds_rxtx0_tx_ok_o)
+	.tx_enabled_o (ccsds_rxtx0_tx_enabled_o)
 );
 
 `endif

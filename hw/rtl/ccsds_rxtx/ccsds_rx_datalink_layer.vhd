@@ -26,23 +26,26 @@ entity ccsds_rx_datalink_layer is
   );
   port(
     clk_i: in std_logic;
-    clk_o: out std_logic;
     rst_i: in std_logic;
-    data_par_i: in std_logic_vector(CCSDS_RX_DATALINK_DATA_BUS_SIZE-1 downto 0);
-    data_ser_i: in std_logic;
-    data_par_o: out std_logic_vector(CCSDS_RX_DATALINK_DATA_BUS_SIZE-1 downto 0);
-    data_ser_o: out std_logic
+    data_i: in std_logic_vector(CCSDS_RX_DATALINK_DATA_BUS_SIZE-1 downto 0);
+    data_o: out std_logic_vector(CCSDS_RX_DATALINK_DATA_BUS_SIZE-1 downto 0);
+    data_buffer_full_o: out std_logic;
+    frames_buffer_full_o: out std_logic;
+    bits_buffer_full_o: out std_logic
   );
 end ccsds_rx_datalink_layer;
 
 -- internal processing
 architecture rtl of ccsds_rx_datalink_layer is
-  begin
 -- TEMPORARY NO CHANGE / DUMMY LINKLAYER
-    DATALINKP : process (clk_i, data_par_i, data_ser_i)
+
+  begin
+  data_o <= data_i;
+  data_buffer_full_o <= '0';
+  frames_buffer_full_o <= '0';
+  bits_buffer_full_o <= '0';
+  
+    DATALINKP : process (clk_i, data_i)
     begin
-      data_par_o <= data_par_i;
-      data_ser_o <= data_ser_i;
-      clk_o <= clk_i;
     end process;
 end rtl;
