@@ -23,7 +23,7 @@ use ieee.numeric_std.all;
 use ieee.math_real.all;
 
 package ccsds_rxtx_functions is
--- synthesable functions
+-- synthetizable functions
   function reverse_std_logic_vector (input: in std_logic_vector) return std_logic_vector;
 -- simulation / testbench only functions
   procedure sim_generate_random_std_logic_vector(vector_size : in integer; seed1 : inout positive; seed2 : inout positive; result : out std_logic_vector);
@@ -35,8 +35,8 @@ package body ccsds_rxtx_functions is
   variable result: std_logic_vector(input'RANGE);
   alias output: std_logic_vector(input'REVERSE_RANGE) is input;
   begin
-    for i in output'RANGE loop
-      result(i) := output(i);
+    for vector_pointer in output'RANGE loop
+      result(vector_pointer) := output(vector_pointer);
     end loop;
     return result;
   end;
@@ -51,11 +51,11 @@ package body ccsds_rxtx_functions is
       result := std_logic_vector(to_unsigned(integer(rand),vector_size));
     else
       uniform(seed1, seed2, rand);
-      for i in 0 to vector_size-1 loop
+      for vector_pointer in 0 to vector_size-1 loop
         uniform(seed1, seed2, rand);
         rand := rand*(2**(real(32)-1.0));
         temp := std_logic_vector(to_unsigned(integer(rand),32));
-        result(i) := temp(i mod 32);
+        result(vector_pointer) := temp(vector_pointer mod 32);
       end loop;
     end if;
   end sim_generate_random_std_logic_vector;

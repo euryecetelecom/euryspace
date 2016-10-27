@@ -15,35 +15,34 @@
 ---- 2015/11/17: initial release
 ---- 2016/10/21: rework based on TX final architecture
 -------------------------------
---FIXME: Framer is too slow vs external input data from TX (input perfs = 1 bit / clk vs CRC perfs = (HEADER/NbDataBitsByFrame + 1) bits / clk)
 
 -- libraries used
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.math_real.all;
 
 --=============================================================================
 -- Entity declaration for ccsds_tx / unitary tx datalink layer inputs and outputs
 --=============================================================================
 entity ccsds_tx_datalink_layer is
   generic (
-    CCSDS_TX_DATALINK_DATA_BUFFER_SIZE: integer := 64;
-    CCSDS_TX_DATALINK_FRAMES_BUFFER_SIZE: integer := 16;
-    CCSDS_TX_DATALINK_BITS_BUFFER_SIZE: integer := 4096;
-    CCSDS_TX_DATALINK_HEADER_LENGTH: integer := 6; -- datagram header length (Bytes)
+    CCSDS_TX_DATALINK_DATA_BUS_SIZE: integer := 32; -- in bits
+    CCSDS_TX_DATALINK_DATA_LENGTH: integer := 24; -- datagram data size (Bytes) / (has to be a multiple of CCSDS_TX_DATALINK_DATA_BUS_SIZE)
     CCSDS_TX_DATALINK_FOOTER_LENGTH: integer := 2; -- datagram footer length (Bytes)
-    CCSDS_TX_DATALINK_DATA_LENGTH: integer := 120; -- datagram data size (Bytes) / (has to be a multiple of CCSDS_TX_DATALINK_DATA_BUS_SIZE)
-    CCSDS_TX_DATALINK_DATA_BUS_SIZE: integer := 32
+    CCSDS_TX_DATALINK_HEADER_LENGTH: integer := 6 -- datagram header length (Bytes)
   );
   port(
+    -- inputs
     clk_i: in std_logic;
+    dat_i: in std_logic_vector(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
+    dat_val_i: in std_logic;
     rst_i: in std_logic;
-    data_valid_i: in std_logic;
-    data_i: in std_logic_vector(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
-    data_valid_o: out std_logic;
-    data_o: out std_logic_vector(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
-    data_buffer_full_o: out std_logic;
-    frames_buffer_full_o: out std_logic;
-    bits_buffer_full_o: out std_logic
+    -- outputs
+    buf_bit_ful_o: out std_logic;
+    buf_dat_ful_o: out std_logic;
+    buf_fra_ful_o: out std_logic;
+    dat_o: out std_logic_vector(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
+    dat_val_o: out std_logic
   );
 end ccsds_tx_datalink_layer;
 
@@ -58,34 +57,38 @@ architecture structure of ccsds_tx_datalink_layer is
     );
     port(
       clk_i: in std_logic;
+      dat_i: in std_logic_vector(CCSDS_RXTX_BUFFER_DATA_BUS_SIZE-1 downto 0);
+      dat_val_i: in std_logic;
+      nxt_dat_i: in std_logic;
       rst_i: in std_logic;
-      buffer_empty_o: out std_logic;
-      buffer_full_o: out std_logic;
-      next_data_i: in std_logic;
-      data_i: in std_logic_vector(CCSDS_RXTX_BUFFER_DATA_BUS_SIZE-1 downto 0);
-      data_valid_i: in std_logic;
-      data_o: out std_logic_vector(CCSDS_RXTX_BUFFER_DATA_BUS_SIZE-1 downto 0);
-      data_valid_o: out std_logic
+      buf_emp_o: out std_logic;
+      buf_ful_o: out std_logic;
+      dat_o: out std_logic_vector(CCSDS_RXTX_BUFFER_DATA_BUS_SIZE-1 downto 0);
+      dat_val_o: out std_logic
     );
   end component;
   component ccsds_tx_framer is
     generic(
-      CCSDS_TX_FRAMER_HEADER_LENGTH : integer;
+      CCSDS_TX_FRAMER_DATA_BUS_SIZE : integer;
       CCSDS_TX_FRAMER_DATA_LENGTH : integer;
       CCSDS_TX_FRAMER_FOOTER_LENGTH : integer;
-      CCSDS_TX_FRAMER_DATA_BUS_SIZE : integer
+      CCSDS_TX_FRAMER_HEADER_LENGTH : integer
     );
     port(
       clk_i: in std_logic;
-      clk_o: out std_logic;
       rst_i: in std_logic;
-      next_data_o: out std_logic;
-      data_i: in std_logic_vector(CCSDS_TX_FRAMER_DATA_BUS_SIZE-1 downto 0);
-      data_valid_i: in std_logic;
-      data_o: out std_logic_vector((CCSDS_TX_FRAMER_DATA_LENGTH+CCSDS_TX_FRAMER_HEADER_LENGTH+CCSDS_TX_FRAMER_FOOTER_LENGTH)*8-1 downto 0);
-      data_valid_o: out std_logic
+      dat_i: in std_logic_vector(CCSDS_TX_FRAMER_DATA_BUS_SIZE-1 downto 0);
+      dat_val_i: in std_logic;
+      dat_o: out std_logic_vector((CCSDS_TX_FRAMER_DATA_LENGTH+CCSDS_TX_FRAMER_HEADER_LENGTH+CCSDS_TX_FRAMER_FOOTER_LENGTH)*8-1 downto 0);
+      dat_val_o: out std_logic;
+      nxt_dat_o: out std_logic
     );
   end component;
+
+-- internal constants
+  constant CCSDS_TX_DATALINK_DATA_BUFFER_SIZE: integer := 2;--CCSDS_TX_DATALINK_DATA_LENGTH*8/CCSDS_TX_DATALINK_DATA_BUS_SIZE; --TO BE TESTED WITH SMALL PAYLOAD / --2 without frame stuffing
+  constant CCSDS_TX_DATALINK_FRAMES_BUFFER_SIZE: integer := 16;
+  constant CCSDS_TX_DATALINK_BITS_BUFFER_SIZE: integer := 4096;
 
 -- interconnection signals
   signal wire_data_buffer_data: std_logic_vector(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
@@ -110,13 +113,13 @@ architecture structure of ccsds_tx_datalink_layer is
     port map(
       clk_i => clk_i,
       rst_i => rst_i,
-      data_valid_i => data_valid_i,
-      data_i => data_i,
-      data_valid_o => wire_data_buffer_data_valid,
-      buffer_empty_o => wire_data_buffer_empty,
-      buffer_full_o => wire_data_buffer_full,
-      next_data_i => wire_data_buffer_next_data,
-      data_o => wire_data_buffer_data
+      dat_val_i => dat_val_i,
+      dat_i => dat_i,
+      dat_val_o => wire_data_buffer_data_valid,
+      buf_emp_o => wire_data_buffer_empty,
+      buf_ful_o => wire_data_buffer_full,
+      nxt_dat_i => wire_data_buffer_next_data,
+      dat_o => wire_data_buffer_data
     );
    
   tx_datalink_framer_0: ccsds_tx_framer
@@ -129,11 +132,11 @@ architecture structure of ccsds_tx_datalink_layer is
     port map(
       clk_i => clk_i,
       rst_i => rst_i,
-      data_valid_i => wire_data_buffer_data_valid,
-      data_i => wire_data_buffer_data,
-      data_valid_o => wire_framer_data_valid,
-      next_data_o => wire_data_buffer_next_data,
-      data_o => wire_framer_data
+      dat_val_i => wire_data_buffer_data_valid,
+      dat_i => wire_data_buffer_data,
+      dat_val_o => wire_framer_data_valid,
+      nxt_dat_o => wire_data_buffer_next_data,
+      dat_o => wire_framer_data
     );
 
   tx_datalink_frames_buffer_0: ccsds_rxtx_buffer
@@ -144,20 +147,22 @@ architecture structure of ccsds_tx_datalink_layer is
     port map(
       clk_i => clk_i,
       rst_i => rst_i,
-      data_valid_i => wire_framer_data_valid,
-      data_i => wire_framer_data,
-      data_valid_o => data_valid_o,
-      buffer_empty_o => wire_frames_buffer_empty,
-      buffer_full_o => wire_frames_buffer_full,
-      next_data_i => wire_frames_buffer_next_data,
-      data_o => wire_frames_buffer_data
+      dat_val_i => wire_framer_data_valid,
+      dat_i => wire_framer_data,
+      dat_val_o => dat_val_o,
+      buf_emp_o => wire_frames_buffer_empty,
+      buf_ful_o => wire_frames_buffer_full,
+      nxt_dat_i => wire_frames_buffer_next_data,
+      dat_o => wire_frames_buffer_data
     );
 
-  data_buffer_full_o <= wire_data_buffer_full;
-  data_o <= wire_frames_buffer_data(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
+  buf_dat_ful_o <= wire_data_buffer_full;
+  dat_o <= wire_frames_buffer_data(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
 
 -- internal processing
-    
+
+--  constant TX_DATALINK_CCSDS_ASM_SEQUENCE : std_logic_vector(31 downto 0) := "00011010110011111111110000011101"; -- TRAINING SEQUENCE (FOR SYNCHRONIZATION PURPOSES)
+
     --=============================================================================
     -- Begin of datalinkp
     -- DESCRIPTION TBD

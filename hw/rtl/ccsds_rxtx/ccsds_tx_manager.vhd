@@ -14,7 +14,7 @@
 ---- Changes list:
 ---- 2016/10/16: initial release
 -------------------------------
---FIXME: use dedicated serdes component + merge ser2par code from here
+--TODO: use dedicated serdes component
 
 -- libraries used
 library ieee;
@@ -28,17 +28,19 @@ entity ccsds_tx_manager is
       CCSDS_TX_MANAGER_DATA_BUS_SIZE : integer := 32
     );
     port(
+      -- inputs
       clk_i: in std_logic;
-      clk_o: out std_logic;
-      rst_i: in std_logic;
+      dat_par_i: in std_logic_vector(CCSDS_TX_MANAGER_DATA_BUS_SIZE-1 downto 0);
+      dat_ser_i: in std_logic;
+      dat_val_i: in std_logic;
       ena_i: in std_logic;
-      enabled_o: out std_logic;
-      input_sel_i: in std_logic; -- 0 = parallel data / 1 = external serial data
-      data_par_i: in std_logic_vector(CCSDS_TX_MANAGER_DATA_BUS_SIZE-1 downto 0);
-      data_ser_i: in std_logic;
-      data_valid_i: in std_logic;
-      data_valid_o: out std_logic;
-      data_o: out std_logic_vector(CCSDS_TX_MANAGER_DATA_BUS_SIZE-1 downto 0)
+      in_sel_i: in std_logic; -- 0 = parallel data / 1 = external serial data
+      rst_i: in std_logic;
+      -- outputs
+      clk_o: out std_logic;
+      dat_o: out std_logic_vector(CCSDS_TX_MANAGER_DATA_BUS_SIZE-1 downto 0);
+      dat_val_o: out std_logic;
+      ena_o: out std_logic
     );
 end ccsds_tx_manager;
 
@@ -58,22 +60,22 @@ architecture structure of ccsds_tx_manager is
     -- read: ena_i
     -- write: clk_o, enabled_o
     -- r/w: 
-    ENABLEP : process (clk_i)
+    ENABLEP : process (ena_i, clk_i)
     begin
       if (ena_i = '1') then
         clk_o <= clk_i;
-        enabled_o <= '1';
+        ena_o <= '1';
       else
         clk_o <= '0';
-        enabled_o <= '0';
+        ena_o <= '0';
       end if;
     end process;
     --=============================================================================
     -- Begin of serparp
-    -- Serial to parallel data if input_sel_i = 1 / first input bit as MSB
+    -- Serial to parallel data if in_sel_i = 1 / first input bit as MSB
     --=============================================================================
-    -- read: clk_i, rst_i, ena_i, data_valid_i, input_sel_i
-    -- write: data_o, data_valid_o
+    -- read: clk_i, rst_i, ena_i, dat_val_i, in_sel_i
+    -- write: dat_o, dat_val_o
     -- r/w: 
     SERPARP : process (clk_i)
     -- variables instantiation
@@ -82,29 +84,29 @@ architecture structure of ccsds_tx_manager is
       -- on each clock rising edge
       if rising_edge(clk_i) then
         if (rst_i = '1') then
-          data_o <= (others => '0');
-          data_valid_o <= '0';
+          dat_o <= (others => '0');
+          dat_val_o <= '0';
         else
           if (ena_i = '1') then
-            if (data_valid_i = '1') then
-              if (input_sel_i = '1') then
-                data_o(circular_pointer) <= data_ser_i;
+            if (dat_val_i = '1') then
+              if (in_sel_i = '1') then
+                dat_o(circular_pointer) <= dat_ser_i;
                 if (circular_pointer = 0) then
-                  data_valid_o <= '1';
+                  dat_val_o <= '1';
                   circular_pointer := CCSDS_TX_MANAGER_DATA_BUS_SIZE-1;
                 else
-                  data_valid_o <= '0';
+                  dat_val_o <= '0';
                   circular_pointer := circular_pointer - 1;
                 end if;
               else
-                data_valid_o <= '1';
-                data_o <= data_par_i;
+                dat_val_o <= '1';
+                dat_o <= dat_par_i;
               end if;
             else
-              data_valid_o <= '0';
+              dat_val_o <= '0';
             end if;
           else
-            data_valid_o <= '0';
+            dat_val_o <= '0';
           end if;
         end if;
       end if;

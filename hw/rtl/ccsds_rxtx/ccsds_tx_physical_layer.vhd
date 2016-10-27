@@ -22,17 +22,19 @@ use ieee.std_logic_1164.all;
 -- unitary tx physical layer
 entity ccsds_tx_physical_layer is
   generic (
-    CCSDS_TX_PHYSICAL_SIG_QUANT_DEPTH : integer := 16;
-    CCSDS_TX_PHYSICAL_DATA_BUS_SIZE: integer := 32
+    CCSDS_TX_PHYSICAL_DATA_BUS_SIZE: integer := 32;
+    CCSDS_TX_PHYSICAL_SIG_QUANT_DEPTH : integer := 16
   );
   port(
-      clk_i: in std_logic;
-      clk_o: out std_logic;
-      rst_i: in std_logic;
-      i_samples_o: out std_logic_vector(CCSDS_TX_PHYSICAL_SIG_QUANT_DEPTH-1 downto 0);
-      q_samples_o: out std_logic_vector(CCSDS_TX_PHYSICAL_SIG_QUANT_DEPTH-1 downto 0);
-      data_valid_i: in std_logic;
-      data_i: in std_logic_vector(CCSDS_TX_PHYSICAL_DATA_BUS_SIZE-1 downto 0)
+    -- inputs
+    clk_i: in std_logic;
+    dat_i: in std_logic_vector(CCSDS_TX_PHYSICAL_DATA_BUS_SIZE-1 downto 0);
+    dat_val_i: in std_logic;
+    rst_i: in std_logic;
+    -- outputs
+    clk_o: out std_logic;
+    sam_i_o: out std_logic_vector(CCSDS_TX_PHYSICAL_SIG_QUANT_DEPTH-1 downto 0);
+    sam_q_o: out std_logic_vector(CCSDS_TX_PHYSICAL_SIG_QUANT_DEPTH-1 downto 0)
   );
 end ccsds_tx_physical_layer;
 
@@ -45,11 +47,11 @@ architecture rtl of ccsds_tx_physical_layer is
       clk_o <= clk_i;
       if rising_edge(clk_i) then
         if (rst_i = '1') then
-          i_samples_o <= (others => '0');
-          q_samples_o <= (others => '0');
+          sam_i_o <= (others => '0');
+          sam_q_o <= (others => '0');
         else
-          i_samples_o <= data_i(CCSDS_TX_PHYSICAL_SIG_QUANT_DEPTH-1 downto 0);
-          q_samples_o <= data_i(CCSDS_TX_PHYSICAL_DATA_BUS_SIZE-1 downto CCSDS_TX_PHYSICAL_SIG_QUANT_DEPTH);
+          sam_i_o <= dat_i(CCSDS_TX_PHYSICAL_SIG_QUANT_DEPTH-1 downto 0);
+          sam_q_o <= dat_i(CCSDS_TX_PHYSICAL_DATA_BUS_SIZE-1 downto CCSDS_TX_PHYSICAL_SIG_QUANT_DEPTH);
         end if;
       end if;
       end process;

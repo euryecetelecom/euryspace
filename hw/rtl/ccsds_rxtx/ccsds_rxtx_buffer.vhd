@@ -15,7 +15,6 @@
 ---- 2016/02/27: initial release
 ---- 2016/10/20: major corrections and optimizations
 -------------------------------
---FIXME: 1 WORD not used for storage
 
 -- libraries used
 library ieee;
@@ -30,15 +29,17 @@ entity ccsds_rxtx_buffer is
     CCSDS_RXTX_BUFFER_SIZE : integer
   );
   port(
+    -- inputs
     clk_i: in std_logic;
+    dat_i: in std_logic_vector(CCSDS_RXTX_BUFFER_DATA_BUS_SIZE-1 downto 0);
+    dat_val_i: in std_logic;
+    nxt_dat_i: in std_logic;
     rst_i: in std_logic;
-    buffer_empty_o: out std_logic;
-    buffer_full_o: out std_logic;
-    next_data_i: in std_logic;
-    data_i: in std_logic_vector(CCSDS_RXTX_BUFFER_DATA_BUS_SIZE-1 downto 0);
-    data_valid_i: in std_logic;
-    data_o: out std_logic_vector(CCSDS_RXTX_BUFFER_DATA_BUS_SIZE-1 downto 0);
-    data_valid_o: out std_logic
+    -- outputs
+    buf_emp_o: out std_logic;
+    buf_ful_o: out std_logic;
+    dat_o: out std_logic_vector(CCSDS_RXTX_BUFFER_DATA_BUS_SIZE-1 downto 0);
+    dat_val_o: out std_logic
   );
 end ccsds_rxtx_buffer;
 
@@ -48,10 +49,10 @@ end ccsds_rxtx_buffer;
 architecture rtl of ccsds_rxtx_buffer is
 
 -- interconnection signals
-  signal buffer_read_pos: integer range 0 to CCSDS_RXTX_BUFFER_SIZE-1 := 0;
-  signal buffer_write_pos: integer range 0 to CCSDS_RXTX_BUFFER_SIZE-1 := 0;
-  type buffer_array is array (CCSDS_RXTX_BUFFER_SIZE-1 downto 0) of std_logic_vector(CCSDS_RXTX_BUFFER_DATA_BUS_SIZE-1 downto 0);
+  type buffer_array is array (CCSDS_RXTX_BUFFER_SIZE downto 0) of std_logic_vector(CCSDS_RXTX_BUFFER_DATA_BUS_SIZE-1 downto 0);
   signal buffer_data: buffer_array := (others => (others => '0'));
+  signal buffer_read_pos: integer range 0 to CCSDS_RXTX_BUFFER_SIZE := 0;
+  signal buffer_write_pos: integer range 0 to CCSDS_RXTX_BUFFER_SIZE := 0;
   
 -- components instanciation and mapping
   begin
@@ -59,62 +60,75 @@ architecture rtl of ccsds_rxtx_buffer is
 -- internal processing
 
     --=============================================================================
-    -- Begin of bufferpushp
-    -- Store valid input data in buffer
+    -- Begin of bufferpullp
+    -- Read data from buffer
     --=============================================================================
-    -- read: data_valid_i, rst_i
-    -- write: buffer_write_pos, buffer_data, wire_buffer_full
-    -- r/w: 
-    BUFFERPUSH : process (clk_i)
+    -- read: nxt_dat_i, rst_i, buffer_write_pos, buffer_data
+    -- write: dat_o, dat_val_o, buf_emp_o
+    -- r/w: buffer_read_pos
+    BUFFERPULLP : process (clk_i)
     begin
       if rising_edge(clk_i) then
         if (rst_i = '1') then
-          buffer_write_pos <= 0;
-          buffer_full_o <= '0';
+          buf_emp_o <= '1';
+          buffer_read_pos <= 0;
+          dat_o <= (others => '0');
+          dat_val_o <= '0';
         else
-          -- check if buffer is full
-          if ((buffer_write_pos+1) mod CCSDS_RXTX_BUFFER_SIZE = buffer_read_pos) then
-            buffer_full_o <= '1';
+          if (buffer_read_pos = buffer_write_pos) then
+            buf_emp_o <= '1';
+            dat_val_o <= '0';
           else
-            buffer_full_o <= '0';
-            if (data_valid_i = '1') then
-              -- copy data to buffer mem
-              buffer_data(buffer_write_pos) <= data_i;
-              buffer_write_pos <= (buffer_write_pos + 1) mod CCSDS_RXTX_BUFFER_SIZE;
+            buf_emp_o <= '0';
+            if (nxt_dat_i = '1') then
+              dat_val_o <= '1';
+              dat_o <= buffer_data(buffer_read_pos);
+              if (buffer_read_pos < CCSDS_RXTX_BUFFER_SIZE) then
+                buffer_read_pos <= (buffer_read_pos + 1);
+              else
+                buffer_read_pos <= 0;
+              end if;
+            else
+              dat_val_o <= '0';
             end if;
           end if;
         end if;
       end if;
     end process;
-    
     --=============================================================================
-    -- Begin of bufferpullp
-    -- Read data from buffer
+    -- Begin of bufferpushp
+    -- Store valid input data in buffer
     --=============================================================================
-    -- read: wire_buffer_empty, next_data_i, rst_i
-    -- write: data_o, buffer_read_pos, data_valid_o, wire_buffer_empty
-    -- r/w: 
-    BUFFERPULLP : process (clk_i)
+    -- read: dat_i, dat_val_i, buffer_read_pos, rst_i
+    -- write:  buffer_data, buf_ful_o
+    -- r/w: buffer_write_pos
+    BUFFERPUSH : process (clk_i)
     begin
       if rising_edge(clk_i) then
         if (rst_i = '1') then
-          buffer_read_pos <= 0;
-          data_valid_o <= '0';
-          data_o <= (others => '0');
-          buffer_empty_o <= '1';
+          buffer_data <= (others => (others => '0'));
+          buf_ful_o <= '0';
+          buffer_write_pos <= 0;
         else
-          -- check if buffer is empty
-          if (buffer_read_pos = buffer_write_pos) then
-            buffer_empty_o <= '1';
-            data_valid_o <= '0';
-          else
-            buffer_empty_o <= '0';
-            if (next_data_i = '1') then
-              data_valid_o <= '1';
-              data_o <= buffer_data(buffer_read_pos);
-              buffer_read_pos <= (buffer_read_pos + 1) mod CCSDS_RXTX_BUFFER_SIZE;
+          if (buffer_write_pos < CCSDS_RXTX_BUFFER_SIZE) then
+            if (buffer_read_pos = (buffer_write_pos+1)) then
+              buf_ful_o <= '1';
             else
-              data_valid_o <= '0';
+              buf_ful_o <= '0';
+              if (dat_val_i = '1') then
+                buffer_data(buffer_write_pos) <= dat_i;
+                buffer_write_pos <= (buffer_write_pos + 1);
+              end if;
+            end if;
+          else
+            if (buffer_read_pos = 0) then
+              buf_ful_o <= '1';
+            else
+              buf_ful_o <= '0';
+              if (dat_val_i = '1') then
+                buffer_data(buffer_write_pos) <= dat_i;
+                buffer_write_pos <= 0;
+              end if;
             end if;
           end if;
         end if;

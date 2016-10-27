@@ -53,18 +53,20 @@ entity ccsds_tx_header is
     CCSDS_TX_HEADER_LENGTH: integer; -- in Bytes
     CCSDS_TX_HEADER_MCI_TFVN: std_logic_vector(2-1 downto 0) := "00"; -- Transfer Frame Version Number value
     CCSDS_TX_HEADER_MCI_SID: std_logic_vector(10-1 downto 0) := "1100110011"; -- Spacecraft ID value
-    CCSDS_TX_HEADER_VCI: std_logic_vector(3-1 downto 0) := "000"; -- Virtual Channel Identifier value
     CCSDS_TX_HEADER_MCFC_LENGTH: integer := 8; -- Master Channel Frame Count length - in bits
+    CCSDS_TX_HEADER_VCI: std_logic_vector(3-1 downto 0) := "000"; -- Virtual Channel Identifier value
     CCSDS_TX_HEADER_VCFC_LENGTH: integer := 8; -- Virtual Channel Frame Count length - in bits
     CCSDS_TX_HEADER_TFDFS_LENGTH: integer := 16 -- Transfer Frame Data Field Status length - in bits
   );
   port(
+    -- inputs
     clk_i: in std_logic;
-    rst_i: in std_logic;
     nxt_i: in std_logic;
-    busy_o: out std_logic;
-    data_o: out std_logic_vector(CCSDS_TX_HEADER_LENGTH*8-1 downto 0);
-    data_valid_o: out std_logic
+    rst_i: in std_logic;
+    -- outputs
+    bus_o: out std_logic;
+    dat_o: out std_logic_vector(CCSDS_TX_HEADER_LENGTH*8-1 downto 0);
+    dat_val_o: out std_logic
   );
 end ccsds_tx_header;
 
@@ -92,7 +94,7 @@ architecture rtl of ccsds_tx_header is
     -- Generate valid headers
     --=============================================================================
     -- read: rst_i, nxt_i
-    -- write: data_valid_o, data_o
+    -- write: dat_val_o, dat_o
     -- r/w: 
     HEADERP : process (clk_i)
     variable header_mci_tfvn: std_logic_vector(CCSDS_TX_HEADER_MCI_TFVN'length-1 downto 0) := CCSDS_TX_HEADER_MCI_TFVN; -- Transfer Frame Version Number
@@ -107,9 +109,9 @@ architecture rtl of ccsds_tx_header is
       if rising_edge(clk_i) then
         -- reset signal received
         if (rst_i = '1') then
-          data_o <= (others => '0');
-          data_valid_o <= '0';
-          busy_o <= '0';
+          dat_o <= (others => '0');
+          dat_val_o <= '0';
+          bus_o <= '0';
           header_mci_tfvn := CCSDS_TX_HEADER_MCI_TFVN;
           header_mci_sid := CCSDS_TX_HEADER_MCI_SID;
           header_vci := CCSDS_TX_HEADER_VCI;
@@ -120,16 +122,16 @@ architecture rtl of ccsds_tx_header is
         else
           if (nxt_i = '1') then
             --HERE TO PUT BUSY TO 1 + DATA_VALID TO 0 IF SOME PROCESSING HAS TO BE DONE / NO DIRECT RESPONSE
-            -- busy_o <= '1';
-            -- data_valid_o <= '0';
-            data_valid_o <= '1';
-            data_o(CCSDS_TX_HEADER_LENGTH*8-1 downto CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length) <= header_mci_tfvn;
-            data_o(CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length-1 downto CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length-CCSDS_TX_HEADER_MCI_SID'length) <= header_mci_sid;
-            data_o(CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length-CCSDS_TX_HEADER_MCI_SID'length-1 downto CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length-CCSDS_TX_HEADER_MCI_SID'length-CCSDS_TX_HEADER_VCI'length) <= header_vci;
-            data_o(CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length-CCSDS_TX_HEADER_MCI_SID'length-CCSDS_TX_HEADER_VCI'length-1) <= header_ocff;
-            data_o(CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length-CCSDS_TX_HEADER_MCI_SID'length-CCSDS_TX_HEADER_VCI'length-1-1 downto CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length-CCSDS_TX_HEADER_MCI_SID'length-CCSDS_TX_HEADER_VCI'length-1-CCSDS_TX_HEADER_MCFC_LENGTH) <= std_logic_vector(to_unsigned(header_mcfc,CCSDS_TX_HEADER_MCFC_LENGTH));
-            data_o(CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length-CCSDS_TX_HEADER_MCI_SID'length-CCSDS_TX_HEADER_VCI'length-1-CCSDS_TX_HEADER_MCFC_LENGTH-1 downto CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length-CCSDS_TX_HEADER_MCI_SID'length-CCSDS_TX_HEADER_VCI'length-1-CCSDS_TX_HEADER_MCFC_LENGTH-CCSDS_TX_HEADER_VCFC_LENGTH) <= std_logic_vector(to_unsigned(header_vcfc,CCSDS_TX_HEADER_VCFC_LENGTH));
-            data_o(CCSDS_TX_HEADER_TFDFS_LENGTH-1 downto 0) <= header_tfdfs;
+            -- bus_o <= '1';
+            -- dat_val_o <= '0';
+            dat_val_o <= '1';
+            dat_o(CCSDS_TX_HEADER_LENGTH*8-1 downto CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length) <= header_mci_tfvn;
+            dat_o(CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length-1 downto CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length-CCSDS_TX_HEADER_MCI_SID'length) <= header_mci_sid;
+            dat_o(CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length-CCSDS_TX_HEADER_MCI_SID'length-1 downto CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length-CCSDS_TX_HEADER_MCI_SID'length-CCSDS_TX_HEADER_VCI'length) <= header_vci;
+            dat_o(CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length-CCSDS_TX_HEADER_MCI_SID'length-CCSDS_TX_HEADER_VCI'length-1) <= header_ocff;
+            dat_o(CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length-CCSDS_TX_HEADER_MCI_SID'length-CCSDS_TX_HEADER_VCI'length-1-1 downto CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length-CCSDS_TX_HEADER_MCI_SID'length-CCSDS_TX_HEADER_VCI'length-1-CCSDS_TX_HEADER_MCFC_LENGTH) <= std_logic_vector(to_unsigned(header_mcfc,CCSDS_TX_HEADER_MCFC_LENGTH));
+            dat_o(CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length-CCSDS_TX_HEADER_MCI_SID'length-CCSDS_TX_HEADER_VCI'length-1-CCSDS_TX_HEADER_MCFC_LENGTH-1 downto CCSDS_TX_HEADER_LENGTH*8-CCSDS_TX_HEADER_MCI_TFVN'length-CCSDS_TX_HEADER_MCI_SID'length-CCSDS_TX_HEADER_VCI'length-1-CCSDS_TX_HEADER_MCFC_LENGTH-CCSDS_TX_HEADER_VCFC_LENGTH) <= std_logic_vector(to_unsigned(header_vcfc,CCSDS_TX_HEADER_VCFC_LENGTH));
+            dat_o(CCSDS_TX_HEADER_TFDFS_LENGTH-1 downto 0) <= header_tfdfs;
             if (header_mcfc = (2**CCSDS_TX_HEADER_MCFC_LENGTH)-1) then
               header_mcfc := 0;
             else
@@ -141,8 +143,8 @@ architecture rtl of ccsds_tx_header is
               header_vcfc := header_vcfc + 1;
             end if;
           else
-            busy_o <= '0';
-            data_valid_o <= '0';
+            bus_o <= '0';
+            dat_val_o <= '0';
           end if;
         end if;
       end if;

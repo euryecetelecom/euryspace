@@ -85,17 +85,17 @@ module orpsoc_top #(
 `endif
 
 `ifdef CCSDS_RXTX0
-	output	 	ccsds_rxtx0_irq_o,
-	input	[ccsds_rxtx0_rx_samples_width-1:0]	ccsds_rxtx0_rx_i_samples_i,
-	input	[ccsds_rxtx0_rx_samples_width-1:0]	ccsds_rxtx0_rx_q_samples_i,
+	input	[ccsds_rxtx0_rx_samples_width-1:0]	ccsds_rxtx0_rx_sam_i_i,
+	input	[ccsds_rxtx0_rx_samples_width-1:0]	ccsds_rxtx0_rx_sam_q_i,
 	input		ccsds_rxtx0_rx_clk_i,
-	output 		ccsds_rxtx0_rx_enabled_o,
-	input		ccsds_rxtx0_tx_data_ser_i,
+	output 		ccsds_rxtx0_rx_ena_o,
+	output	 	ccsds_rxtx0_rx_irq_o,
+	input		ccsds_rxtx0_tx_dat_ser_i,
 	input		ccsds_rxtx0_tx_clk_i,
-	output	[ccsds_rxtx0_tx_samples_width-1:0]	ccsds_rxtx0_tx_i_samples_o,
-	output	[ccsds_rxtx0_tx_samples_width-1:0]	ccsds_rxtx0_tx_q_samples_o,
+	output	[ccsds_rxtx0_tx_samples_width-1:0]	ccsds_rxtx0_tx_sam_i_o,
+	output	[ccsds_rxtx0_tx_samples_width-1:0]	ccsds_rxtx0_tx_sam_q_o,
 	output		ccsds_rxtx0_tx_clk_o,
-	output 		ccsds_rxtx0_tx_enabled_o,
+	output 		ccsds_rxtx0_tx_ena_o,
 `endif
 
 `ifdef SPI0
@@ -594,7 +594,6 @@ assign wb_s2m_i2c0_rty = 0;
 wire	ccsds_rxtx0_irq;
 
 ccsds_rxtx_top ccsds_rxtx_0 (
-        .irq_o		(ccsds_rxtx0_irq_o),
 	// Wishbone slave interface
 	.wb_clk_i	(wb_clk),
 	.wb_rst_i	(wb_rst),
@@ -610,19 +609,20 @@ ccsds_rxtx_top ccsds_rxtx_0 (
 	//RX
 	//Inputs
 	.rx_clk_i	(ccsds_rxtx0_rx_clk_i),
-	.rx_i_samples_i		(ccsds_rxtx0_rx_i_samples_i),
-	.rx_q_samples_i		(ccsds_rxtx0_rx_q_samples_i),
+	.rx_sam_i_i		(ccsds_rxtx0_rx_sam_i_i),
+	.rx_sam_q_i		(ccsds_rxtx0_rx_sam_q_i),
 	//Outputs
-	.rx_enabled_o	(ccsds_rxtx0_rx_enabled_o),
+	.rx_ena_o	(ccsds_rxtx0_rx_ena_o),
+  .rx_irq_o		(ccsds_rxtx0_irq),
 	//TX
 	//Inputs
 	.tx_clk_i	(ccsds_rxtx0_tx_clk_i),
-	.tx_data_ser_i	(ccsds_rxtx0_tx_data_ser_i),
+	.tx_dat_ser_i	(ccsds_rxtx0_tx_dat_ser_i),
 	//Outputs
-	.tx_i_samples_o (ccsds_rxtx0_tx_i_samples_o),
-	.tx_q_samples_o (ccsds_rxtx0_tx_q_samples_o),
+	.tx_sam_i_o (ccsds_rxtx0_tx_sam_i_o),
+	.tx_sam_q_o (ccsds_rxtx0_tx_sam_q_o),
 	.tx_clk_o (ccsds_rxtx0_tx_clk_o),
-	.tx_enabled_o (ccsds_rxtx0_tx_enabled_o)
+	.tx_ena_o (ccsds_rxtx0_tx_ena_o)
 );
 
 `endif

@@ -36,13 +36,15 @@ entity ccsds_tx_footer is
     CCSDS_TX_FOOTER_LENGTH: integer -- in Bytes
   );
   port(
+    -- inputs
     clk_i: in std_logic;
-    rst_i: in std_logic;
+    dat_i: in std_logic_vector(CCSDS_TX_FOOTER_DATA_LENGTH*8-1 downto 0);
     nxt_i: in std_logic;
-    busy_o: out std_logic;
-    data_i: in std_logic_vector(CCSDS_TX_FOOTER_DATA_LENGTH*8-1 downto 0);
-    data_o: out std_logic_vector(CCSDS_TX_FOOTER_LENGTH*8-1 downto 0);
-    data_valid_o: out std_logic
+    rst_i: in std_logic;
+    -- outputs
+    bus_o: out std_logic;
+    dat_o: out std_logic_vector((CCSDS_TX_FOOTER_DATA_LENGTH+CCSDS_TX_FOOTER_LENGTH)*8-1 downto 0);
+    dat_val_o: out std_logic
   );
 end ccsds_tx_footer;
 
@@ -59,10 +61,13 @@ architecture rtl of ccsds_tx_footer is
       clk_i: in std_logic;
       rst_i: in std_logic;
       nxt_i: in std_logic;
-      busy_o: out std_logic;
-      data_i: in std_logic_vector(CCSDS_RXTX_CRC_DATA_LENGTH*8-1 downto 0);
-      data_o: out std_logic_vector(CCSDS_RXTX_CRC_LENGTH*8-1 downto 0);
-      data_valid_o: out std_logic
+      pad_dat_i: in std_logic_vector(CCSDS_RXTX_CRC_LENGTH*8-1 downto 0);
+      pad_dat_val_i: in std_logic;
+      dat_i: in std_logic_vector(CCSDS_RXTX_CRC_DATA_LENGTH*8-1 downto 0);
+      bus_o: out std_logic;
+      crc_o: out std_logic_vector(CCSDS_RXTX_CRC_LENGTH*8-1 downto 0);
+      dat_o: out std_logic_vector(CCSDS_RXTX_CRC_DATA_LENGTH*8-1 downto 0);
+      dat_val_o: out std_logic
     );
   end component;
 -- internal variable signals
@@ -77,10 +82,13 @@ architecture rtl of ccsds_tx_footer is
       clk_i => clk_i,
       rst_i => rst_i,
       nxt_i => nxt_i,
-      busy_o => busy_o,
-      data_i => data_i,
-      data_o => data_o,
-      data_valid_o => data_valid_o
+      pad_dat_i => (others => '0'),
+      pad_dat_val_i => '0',
+      bus_o => bus_o,
+      dat_i => dat_i,
+      crc_o => dat_o(CCSDS_TX_FOOTER_LENGTH*8-1 downto 0),
+      dat_o => dat_o((CCSDS_TX_FOOTER_DATA_LENGTH+CCSDS_TX_FOOTER_LENGTH)*8-1 downto CCSDS_TX_FOOTER_LENGTH*8),
+      dat_val_o => dat_val_o
     );
 -- internal processing
 

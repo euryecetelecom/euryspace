@@ -25,24 +25,26 @@ use ieee.std_logic_1164.all;
 --=============================================================================
 entity ccsds_tx is
   generic (
-    CCSDS_TX_PHYS_SIG_QUANT_DEPTH : integer;
-    CCSDS_TX_DATA_BUS_SIZE: integer
+    CCSDS_TX_DATA_BUS_SIZE: integer;
+    CCSDS_TX_PHYS_SIG_QUANT_DEPTH : integer
   );
   port(
-    rst_i: in std_logic; -- system reset input
-    ena_i: in std_logic; -- system enable input
+    -- inputs
     clk_i: in std_logic; -- transmitted data clock
-    input_sel_i: in std_logic; -- parallel / serial input selection
-    data_valid_i: in std_logic; -- transmitted data valid input
-    data_par_i: in std_logic_vector(CCSDS_TX_DATA_BUS_SIZE-1 downto 0); -- transmitted parallel data input
-    data_ser_i: in std_logic; -- transmitted serial data input
+    dat_par_i: in std_logic_vector(CCSDS_TX_DATA_BUS_SIZE-1 downto 0); -- transmitted parallel data input
+    dat_ser_i: in std_logic; -- transmitted serial data input
+    dat_val_i: in std_logic; -- transmitted data valid input
+    ena_i: in std_logic; -- system enable input
+    in_sel_i: in std_logic; -- parallel / serial input selection
+    rst_i: in std_logic; -- system reset input
+    -- outputs
+    buf_bit_ful_o: out std_logic; -- bits buffer status indicator
+    buf_dat_ful_o: out std_logic; -- data buffer status indicator
+    buf_fra_ful_o: out std_logic; -- frames buffer status indicator
     clk_o: out std_logic; -- output samples clock
-    i_samples_o: out std_logic_vector(CCSDS_TX_PHYS_SIG_QUANT_DEPTH-1 downto 0); -- in-phased parallel complex samples
-    q_samples_o: out std_logic_vector(CCSDS_TX_PHYS_SIG_QUANT_DEPTH-1 downto 0); -- quadrature-phased parallel complex samples
-    data_buffer_full_o: out std_logic; -- data buffer status indicator
-    frames_buffer_full_o: out std_logic; -- frames buffer status indicator
-    bits_buffer_full_o: out std_logic; -- bits buffer status indicator
-    enabled_o: out std_logic -- enabled status indicator
+    ena_o: out std_logic; -- enabled status indicator
+    sam_i_o: out std_logic_vector(CCSDS_TX_PHYS_SIG_QUANT_DEPTH-1 downto 0); -- in-phased parallel complex samples
+    sam_q_o: out std_logic_vector(CCSDS_TX_PHYS_SIG_QUANT_DEPTH-1 downto 0) -- quadrature-phased parallel complex samples
   );
 end ccsds_tx;
 
@@ -59,13 +61,13 @@ architecture structure of ccsds_tx is
       clk_o: out std_logic;
       rst_i: in std_logic;
       ena_i: in std_logic;
-      enabled_o: out std_logic;
-      input_sel_i: in std_logic;
-      data_par_i: in std_logic_vector(CCSDS_TX_MANAGER_DATA_BUS_SIZE-1 downto 0);
-      data_ser_i: in std_logic;
-      data_valid_i: in std_logic;
-      data_valid_o: out std_logic;
-      data_o: out std_logic_vector(CCSDS_TX_MANAGER_DATA_BUS_SIZE-1 downto 0)
+      ena_o: out std_logic;
+      in_sel_i: in std_logic;
+      dat_par_i: in std_logic_vector(CCSDS_TX_MANAGER_DATA_BUS_SIZE-1 downto 0);
+      dat_ser_i: in std_logic;
+      dat_val_i: in std_logic;
+      dat_val_o: out std_logic;
+      dat_o: out std_logic_vector(CCSDS_TX_MANAGER_DATA_BUS_SIZE-1 downto 0)
     );
   end component;
   component ccsds_tx_datalink_layer is
@@ -75,13 +77,13 @@ architecture structure of ccsds_tx is
     port(
       clk_i: in std_logic;
       rst_i: in std_logic;
-      data_valid_i: in std_logic;
-      data_i: in std_logic_vector(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
-      data_valid_o: out std_logic;
-      data_o: out std_logic_vector(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
-      data_buffer_full_o: out std_logic;
-      frames_buffer_full_o: out std_logic;
-      bits_buffer_full_o: out std_logic
+      dat_val_i: in std_logic;
+      dat_i: in std_logic_vector(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
+      dat_val_o: out std_logic;
+      dat_o: out std_logic_vector(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
+      buf_dat_ful_o: out std_logic;
+      buf_fra_ful_o: out std_logic;
+      buf_bit_ful_o: out std_logic
     );
   end component;
   component ccsds_tx_physical_layer is
@@ -93,10 +95,10 @@ architecture structure of ccsds_tx is
       clk_i: in std_logic;
       clk_o: out std_logic;
       rst_i: in std_logic;
-      i_samples_o: out std_logic_vector(CCSDS_TX_PHYSICAL_SIG_QUANT_DEPTH-1 downto 0);
-      q_samples_o: out std_logic_vector(CCSDS_TX_PHYSICAL_SIG_QUANT_DEPTH-1 downto 0);
-      data_valid_i: in std_logic;
-      data_i: in std_logic_vector(CCSDS_TX_PHYSICAL_DATA_BUS_SIZE-1 downto 0)
+      sam_i_o: out std_logic_vector(CCSDS_TX_PHYSICAL_SIG_QUANT_DEPTH-1 downto 0);
+      sam_q_o: out std_logic_vector(CCSDS_TX_PHYSICAL_SIG_QUANT_DEPTH-1 downto 0);
+      dat_val_i: in std_logic;
+      dat_i: in std_logic_vector(CCSDS_TX_PHYSICAL_DATA_BUS_SIZE-1 downto 0)
     );
   end component;
 
@@ -117,13 +119,13 @@ begin
       clk_o => wire_clk_m,
       rst_i => rst_i,
       ena_i => ena_i,
-      enabled_o => enabled_o,
-      input_sel_i => input_sel_i,
-      data_valid_i => data_valid_i,
-      data_par_i => data_par_i,
-      data_ser_i => data_ser_i,
-      data_valid_o => wire_data_valid_m,
-      data_o => wire_data_m
+      ena_o => ena_o,
+      in_sel_i => in_sel_i,
+      dat_val_i => dat_val_i,
+      dat_par_i => dat_par_i,
+      dat_ser_i => dat_ser_i,
+      dat_val_o => wire_data_valid_m,
+      dat_o => wire_data_m
     );
   tx_datalink_layer_1: ccsds_tx_datalink_layer
     generic map(
@@ -132,13 +134,13 @@ begin
     port map(
       clk_i => wire_clk_m,
       rst_i => rst_i,
-      data_valid_i => wire_data_valid_m,
-      data_i => wire_data_m,
-      data_valid_o => wire_data_valid_d,
-      data_o => wire_data_d,
-      data_buffer_full_o => data_buffer_full_o,
-      frames_buffer_full_o => frames_buffer_full_o,
-      bits_buffer_full_o => bits_buffer_full_o
+      dat_val_i => wire_data_valid_m,
+      dat_i => wire_data_m,
+      dat_val_o => wire_data_valid_d,
+      dat_o => wire_data_d,
+      buf_dat_ful_o => buf_dat_ful_o,
+      buf_fra_ful_o => buf_fra_ful_o,
+      buf_bit_ful_o => buf_bit_ful_o
     );
   tx_physical_layer_1: ccsds_tx_physical_layer
     generic map(
@@ -149,10 +151,10 @@ begin
       clk_i => wire_clk_m,
       clk_o => clk_o,
       rst_i => rst_i,
-      i_samples_o => i_samples_o,
-      q_samples_o => q_samples_o,
-      data_valid_i => wire_data_valid_d,
-      data_i => wire_data_d
+      sam_i_o => sam_i_o,
+      sam_q_o => sam_q_o,
+      dat_val_i => wire_data_valid_d,
+      dat_i => wire_data_d
     );
 end structure;
 
