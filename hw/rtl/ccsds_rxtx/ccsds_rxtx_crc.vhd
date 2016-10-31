@@ -4,8 +4,11 @@
 ---- Version: 1.0.0
 ---- Description:
 ---- CRC computation core
----- (CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH)*8 clock cycles required to be computed
----- TODO: ressources requirements
+---- Input: 1 clk / nxt_dat_i <= '1' / dat_i <= "CRCCOMPUTEDDATA" / [pad_dat_val_i <= '1' / pad_dat_i <= "PADDINGDATA"]
+---- Timing requirements: (CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH)*8+1 clock cycles for valid output CRC
+---- Output: dat_val_o <= "1" / dat_o <= "CRCCOMPUTEDDATA" / crc_o <= "CRCCOMPUTED"
+---- Ressources requirements: data computed registers + crc registers + padding data registers + busy state registers + data_valid state registers + crc data pointer registers = (CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH*2)*8 + 2 + |log(CCSDS_RXTX_CRC_DATA_LENGTH-1)/log(2)| + 1 registers
+--TODO: ressources with inversions
 -------------------------------
 ---- Author(s):
 ---- Guillaume REMBERT
@@ -16,8 +19,8 @@
 ---- Changes list:
 ---- 2016/10/18: initial release
 ---- 2016/10/25: external padding data mode
+---- 2016/10/30: ressources usage optimization
 -------------------------------
---FIXME: Reduce ressources requirements - inversion logic to be reviewed
 --TODO: Implement DIRECT computation?
 --TODO: CRC LENGTH not being multiple of Byte
 
@@ -177,15 +180,15 @@ use work.ccsds_rxtx_functions.all;
 --=============================================================================
 entity ccsds_rxtx_crc is
   generic(
-    CCSDS_RXTX_CRC_DATA_LENGTH: integer := 2; -- Data length - in Bytes
-    CCSDS_RXTX_CRC_FINAL_XOR: std_logic_vector := x"0000"; -- Final XOR mask (0x0000 <=> No XOR)
-    CCSDS_RXTX_CRC_INPUT_BYTES_REFLECTED: std_logic := '0'; -- Reflect input byte by byte (used by standards)
-    CCSDS_RXTX_CRC_INPUT_REFLECTED: std_logic := '0'; -- Reflect input on overall data (not currently used by standards) / WARNING - take over input bytes reflected parameter if activated
-    CCSDS_RXTX_CRC_LENGTH: integer := 2; -- CRC value depth - in Bytes
-    CCSDS_RXTX_CRC_OUTPUT_REFLECTED: std_logic := '0'; -- Reflect output
-    CCSDS_RXTX_CRC_POLYNOMIAL: std_logic_vector	:= x"1021"; -- Truncated polynomial / LSB <=> lower polynome (needs to be '1')
-    CCSDS_RXTX_CRC_POLYNOMIAL_REFLECTED: std_logic := '0'; -- Reflect polynomial
-    CCSDS_RXTX_CRC_SEED: std_logic_vector := x"FFFF" -- Initial value from register
+    constant CCSDS_RXTX_CRC_DATA_LENGTH: integer := 2; -- Data length - in Bytes
+    constant CCSDS_RXTX_CRC_FINAL_XOR: std_logic_vector := x"0000"; -- Final XOR mask (0x0000 <=> No XOR)
+    constant CCSDS_RXTX_CRC_INPUT_BYTES_REFLECTED: boolean := false; -- Reflect input byte by byte (used by standards)
+    constant CCSDS_RXTX_CRC_INPUT_REFLECTED: boolean := false; -- Reflect input on overall data (not currently used by standards) / WARNING - take over input bytes reflected parameter if activated
+    constant CCSDS_RXTX_CRC_LENGTH: integer := 2; -- CRC value depth - in Bytes
+    constant CCSDS_RXTX_CRC_OUTPUT_REFLECTED: boolean := false; -- Reflect output
+    constant CCSDS_RXTX_CRC_POLYNOMIAL: std_logic_vector	:= x"1021"; -- Truncated polynomial / LSB <=> lower polynome (needs to be '1')
+    constant CCSDS_RXTX_CRC_POLYNOMIAL_REFLECTED: boolean := false; -- Reflect polynomial
+    constant CCSDS_RXTX_CRC_SEED: std_logic_vector := x"FFFF" -- Initial value from register
   );
   port(
     -- inputs
@@ -209,19 +212,21 @@ end ccsds_rxtx_crc;
 architecture rtl of ccsds_rxtx_crc is
 
 -- internal variable signals
-    signal crc_busy: std_logic := '0';
-    signal crc_data_pointer: integer range -2 to ((CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH)*8-1) := -2;
-    signal crc_memory: std_logic_vector(CCSDS_RXTX_CRC_LENGTH*8-1 downto 0) := CCSDS_RXTX_CRC_SEED;
+  signal crc_busy: std_logic := '0';
+  signal crc_data: std_logic_vector((CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH)*8-1 downto 0) := (others => '0');
+  signal crc_memory: std_logic_vector(CCSDS_RXTX_CRC_LENGTH*8-1 downto 0) := CCSDS_RXTX_CRC_SEED;
 
 -- components instanciation and mapping
   begin
      bus_o <= crc_busy;
+     crc_o <= crc_memory;
+     dat_o <= crc_data((CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH)*8-1 downto CCSDS_RXTX_CRC_LENGTH*8);
 -- presynthesis checks
      CHKCRCP0 : if CCSDS_RXTX_CRC_SEED'length /= CCSDS_RXTX_CRC_LENGTH*8 generate
       process
       begin
         report "ERROR: CRC SEED VALUE LENGTH MUST BE EQUAL TO CRC LENGTH" severity failure;
-	wait;
+	      wait;
       end process;
     end generate CHKCRCP0;
     CHKCRCP1 : if CCSDS_RXTX_CRC_POLYNOMIAL'length /= CCSDS_RXTX_CRC_LENGTH*8 generate
@@ -238,7 +243,7 @@ architecture rtl of ccsds_rxtx_crc is
         wait;
       end process;
     end generate CHKCRCP2;
-    CHKCRCP3 : if CCSDS_RXTX_CRC_INPUT_BYTES_REFLECTED = '1' and CCSDS_RXTX_CRC_INPUT_REFLECTED = '1' generate
+    CHKCRCP3 : if CCSDS_RXTX_CRC_INPUT_BYTES_REFLECTED = true and CCSDS_RXTX_CRC_INPUT_REFLECTED = true generate
       process
       begin
         report "ERROR: CRC INPUT DATA REFLECTION CANNOT BE DONE SIMULTANEOUSLY ON OVERALL DATA AND BYTE BY BYTE" severity failure;
@@ -252,89 +257,85 @@ architecture rtl of ccsds_rxtx_crc is
     -- Compute CRC based on input data
     --=============================================================================
     -- read: rst_i, nxt_i, pad_dat_i, pad_dat_val_i
-    -- write: dat_val_o, dat_o, crc_busy, crc_memory
-    -- r/w: crc_data, crc_data_pointer
+    -- write: dat_val_o, crc_busy, crc_memory
+    -- r/w: crc_data
     CRCP: process (clk_i)
-    variable crc_data: std_logic_vector((CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH)*8-1 downto 0) := (others => '0');
+    variable crc_data_pointer: integer range -2 to ((CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH)*8-1) := -2;
     begin
       -- on each clock rising edge
       if rising_edge(clk_i) then
         -- reset signal received
         if (rst_i = '1') then
           crc_busy <= '0';
-          crc_o <= (others => '0');
-          dat_o <= (others => '0');
           dat_val_o <= '0';
-          crc_memory <= CCSDS_RXTX_CRC_SEED;
-          crc_data := (others => '0');
-          crc_data_pointer <= -2;
+--          crc_memory <= CCSDS_RXTX_CRC_SEED;
+--          crc_data <= (others => '0');
+          crc_data_pointer := -2;
         else
-          if (nxt_i = '1') and (crc_data_pointer = -2) then
-            dat_val_o <= '0';
-            crc_busy <= '1';
-            crc_memory <= CCSDS_RXTX_CRC_SEED;
-            crc_data_pointer <= (CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH)*8-1;
-            if (CCSDS_RXTX_CRC_INPUT_REFLECTED = '0') then
-              if (CCSDS_RXTX_CRC_INPUT_BYTES_REFLECTED = '0') then
-                crc_data((CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH)*8-1 downto CCSDS_RXTX_CRC_LENGTH*8) := dat_i;
+          case crc_data_pointer is
+            -- no current crc under computation
+            when -2 =>
+              dat_val_o <= '0';
+              -- CRC computation required and 
+              if (nxt_i = '1') then
+                crc_busy <= '1';
+                crc_memory <= CCSDS_RXTX_CRC_SEED;
+                crc_data_pointer := (CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH)*8-1;
+                if (CCSDS_RXTX_CRC_INPUT_REFLECTED) then
+                  crc_data((CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH)*8-1 downto CCSDS_RXTX_CRC_LENGTH*8) <= reverse_std_logic_vector(dat_i);
+                elsif (CCSDS_RXTX_CRC_INPUT_BYTES_REFLECTED) then
+                  for data_pointer in CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH-1 downto CCSDS_RXTX_CRC_LENGTH loop
+                    crc_data((data_pointer+1)*8-1 downto data_pointer*8) <= reverse_std_logic_vector(dat_i(((data_pointer+1-CCSDS_RXTX_CRC_LENGTH)*8-1) downto (data_pointer-CCSDS_RXTX_CRC_LENGTH)*8));
+                  end loop;
+                else
+                    crc_data((CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH)*8-1 downto CCSDS_RXTX_CRC_LENGTH*8) <= dat_i;
+                end if;
+                if (pad_dat_val_i = '1') then
+                  if (CCSDS_RXTX_CRC_OUTPUT_REFLECTED) then
+                    crc_data(CCSDS_RXTX_CRC_LENGTH*8-1 downto 0) <= reverse_std_logic_vector(pad_dat_i);
+                  else
+                    crc_data(CCSDS_RXTX_CRC_LENGTH*8-1 downto 0) <= pad_dat_i;
+                  end if;
+                else
+                  crc_data(CCSDS_RXTX_CRC_LENGTH*8-1 downto 0) <= (others => '0');
+                end if;
               else
+                -- nothing to be done
+                crc_busy <= '0';
+              end if;
+            -- CRC is computed
+            when -1 =>
+              crc_busy <= '0';
+              dat_val_o <= '1';
+              crc_data_pointer := -2;
+              if (CCSDS_RXTX_CRC_OUTPUT_REFLECTED) then
+                crc_memory <= reverse_std_logic_vector(crc_memory xor CCSDS_RXTX_CRC_FINAL_XOR);
+              else
+                crc_memory <= (crc_memory xor CCSDS_RXTX_CRC_FINAL_XOR);
+              end if;
+              if (CCSDS_RXTX_CRC_INPUT_REFLECTED) then
+                crc_data((CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH)*8-1 downto CCSDS_RXTX_CRC_LENGTH*8) <= reverse_std_logic_vector(crc_data((CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH)*8-1 downto CCSDS_RXTX_CRC_LENGTH*8));
+              elsif (CCSDS_RXTX_CRC_INPUT_BYTES_REFLECTED) then
                 for data_pointer in CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH-1 downto CCSDS_RXTX_CRC_LENGTH loop
-                  crc_data((data_pointer+1)*8-1 downto data_pointer*8) := reverse_std_logic_vector(dat_i(((data_pointer+1-CCSDS_RXTX_CRC_LENGTH)*8-1) downto (data_pointer-CCSDS_RXTX_CRC_LENGTH)*8));
+                  crc_data(((data_pointer+1)*8-1) downto data_pointer*8) <= reverse_std_logic_vector(crc_data(((data_pointer+1)*8-1) downto data_pointer*8));
                 end loop;
               end if;
-            else
-              crc_data((CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH)*8-1 downto CCSDS_RXTX_CRC_LENGTH*8) := reverse_std_logic_vector(dat_i);
-            end if;
-            if (pad_dat_val_i = '1') then
-              crc_data(CCSDS_RXTX_CRC_LENGTH*8-1 downto 0) := pad_dat_i;            
-            else
-              crc_data(CCSDS_RXTX_CRC_LENGTH*8-1 downto 0) := (others => '0');
-            end if;
-          else
-            --nothing to be done
-            if (crc_data_pointer = -2) then
+            -- Computing CRC
+            when others => 
+              crc_busy <= '1';
               dat_val_o <= '0';
-              crc_busy <= '0';
-            else
-              -- CRC is computed
-              if (crc_data_pointer = -1) then
-                crc_busy <= '0';
-                dat_val_o <= '1';
-                crc_data_pointer <= crc_data_pointer - 1;
-                if (CCSDS_RXTX_CRC_OUTPUT_REFLECTED = '0') then
-                  crc_o <= (crc_memory xor CCSDS_RXTX_CRC_FINAL_XOR);
+              -- MSB = 1 / register shifted output bit will be '1'
+              if (crc_memory(CCSDS_RXTX_CRC_LENGTH*8-1) = '1') then
+                if (CCSDS_RXTX_CRC_POLYNOMIAL_REFLECTED) then
+                  crc_memory <= (std_logic_vector(resize(unsigned(crc_memory),CCSDS_RXTX_CRC_LENGTH*8-1)) & crc_data(crc_data_pointer)) xor reverse_std_logic_vector(CCSDS_RXTX_CRC_POLYNOMIAL);
                 else
-                  crc_o <= reverse_std_logic_vector(crc_memory xor CCSDS_RXTX_CRC_FINAL_XOR);
-                end if;
-                if (CCSDS_RXTX_CRC_INPUT_REFLECTED = '0') then
-                  if (CCSDS_RXTX_CRC_INPUT_BYTES_REFLECTED = '0') then
-                    dat_o <= crc_data((CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH)*8-1 downto CCSDS_RXTX_CRC_LENGTH*8);
-                  else
-                    for data_pointer in CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH-1 downto CCSDS_RXTX_CRC_LENGTH loop
-                      dat_o((data_pointer+1-CCSDS_RXTX_CRC_LENGTH)*8-1 downto (data_pointer-CCSDS_RXTX_CRC_LENGTH)*8) <= reverse_std_logic_vector(crc_data(((data_pointer+1)*8-1) downto data_pointer*8));
-                    end loop;
-                  end if;
-                else
-                  dat_o <= reverse_std_logic_vector(crc_data((CCSDS_RXTX_CRC_DATA_LENGTH+CCSDS_RXTX_CRC_LENGTH)*8-1 downto CCSDS_RXTX_CRC_LENGTH*8));
+                  crc_memory <= (std_logic_vector(resize(unsigned(crc_memory),CCSDS_RXTX_CRC_LENGTH*8-1)) & crc_data(crc_data_pointer)) xor CCSDS_RXTX_CRC_POLYNOMIAL;
                 end if;
               else
-                -- Computing CRC
-                crc_busy <= '1';
-                dat_val_o <= '0';
-                crc_data_pointer <= crc_data_pointer - 1;
-                -- MSB = 1 / register shifted output bit will be '1'
-                if (crc_memory(CCSDS_RXTX_CRC_LENGTH*8-1) = '1') then
-                  if (CCSDS_RXTX_CRC_POLYNOMIAL_REFLECTED = '0') then
-                    crc_memory <= (std_logic_vector(resize(unsigned(crc_memory),CCSDS_RXTX_CRC_LENGTH*8-1)) & crc_data(crc_data_pointer)) xor CCSDS_RXTX_CRC_POLYNOMIAL;
-                  else
-                    crc_memory <= (std_logic_vector(resize(unsigned(crc_memory),CCSDS_RXTX_CRC_LENGTH*8-1)) & crc_data(crc_data_pointer)) xor reverse_std_logic_vector(CCSDS_RXTX_CRC_POLYNOMIAL);
-                  end if;
-                else
-                  crc_memory <= (std_logic_vector(resize(unsigned(crc_memory),CCSDS_RXTX_CRC_LENGTH*8-1)) & crc_data(crc_data_pointer));
-                end if;
+                crc_memory <= (std_logic_vector(resize(unsigned(crc_memory),CCSDS_RXTX_CRC_LENGTH*8-1)) & crc_data(crc_data_pointer));
               end if;
-            end if;
-          end if;
+              crc_data_pointer := crc_data_pointer - 1;
+          end case;
         end if;
       end if;
     end process;

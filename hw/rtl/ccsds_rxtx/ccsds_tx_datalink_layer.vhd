@@ -26,10 +26,10 @@ use ieee.math_real.all;
 --=============================================================================
 entity ccsds_tx_datalink_layer is
   generic (
-    CCSDS_TX_DATALINK_DATA_BUS_SIZE: integer := 32; -- in bits
-    CCSDS_TX_DATALINK_DATA_LENGTH: integer := 24; -- datagram data size (Bytes) / (has to be a multiple of CCSDS_TX_DATALINK_DATA_BUS_SIZE)
-    CCSDS_TX_DATALINK_FOOTER_LENGTH: integer := 2; -- datagram footer length (Bytes)
-    CCSDS_TX_DATALINK_HEADER_LENGTH: integer := 6 -- datagram header length (Bytes)
+    constant CCSDS_TX_DATALINK_DATA_BUS_SIZE: integer := 32; -- in bits
+    constant CCSDS_TX_DATALINK_DATA_LENGTH: integer := 24; -- datagram data size (Bytes) / (has to be a multiple of CCSDS_TX_DATALINK_DATA_BUS_SIZE)
+    constant CCSDS_TX_DATALINK_FOOTER_LENGTH: integer := 2; -- datagram footer length (Bytes)
+    constant CCSDS_TX_DATALINK_HEADER_LENGTH: integer := 6 -- datagram header length (Bytes)
   );
   port(
     -- inputs
@@ -163,14 +163,4 @@ architecture structure of ccsds_tx_datalink_layer is
 
 --  constant TX_DATALINK_CCSDS_ASM_SEQUENCE : std_logic_vector(31 downto 0) := "00011010110011111111110000011101"; -- TRAINING SEQUENCE (FOR SYNCHRONIZATION PURPOSES)
 
-    --=============================================================================
-    -- Begin of datalinkp
-    -- DESCRIPTION TBD
-    --=============================================================================
-    -- read: 
-    -- write: 
-    -- r/w: 
-    DATALINKP : process (clk_i)
-    begin
-    end process;
 end structure;

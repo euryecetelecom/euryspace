@@ -15,6 +15,7 @@
 ---- 2016/02/27: initial release
 ---- 2016/10/20: rework
 ---- 2016/10/24: multiple footers generation to ensure higher speed than input max data rate (CCSDS_TX_FRAMER_DATA_BUS_SIZE*CLK_FREQ bits/sec)
+---- 2016/10/31: ressources optimization
 -------------------------------
 --HEADER (6 up to 70 bytes) / before data / independent
 --TRANSFER FRAME DATA FIELD => Variable
@@ -31,10 +32,11 @@ use ieee.math_real.all;
 --=============================================================================
 entity ccsds_tx_framer is
   generic(
-    CCSDS_TX_FRAMER_DATA_BUS_SIZE: integer; -- in bits
-    CCSDS_TX_FRAMER_DATA_LENGTH: integer; -- in Bytes
-    CCSDS_TX_FRAMER_FOOTER_LENGTH: integer; -- in Bytes
-    CCSDS_TX_FRAMER_HEADER_LENGTH: integer -- in Bytes
+    constant CCSDS_TX_FRAMER_DATA_BUS_SIZE: integer; -- in bits
+    constant CCSDS_TX_FRAMER_DATA_LENGTH: integer; -- in Bytes
+    constant CCSDS_TX_FRAMER_FOOTER_LENGTH: integer; -- in Bytes
+    constant CCSDS_TX_FRAMER_HEADER_LENGTH: integer; -- in Bytes
+    constant CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO: integer := 2 -- activated max framer parallelism speed ratio / 1 = full speed / 2 = wishbone bus / 32 = external serial data (has to be a multiple of TBD)
   );
   port(
     -- inputs
@@ -55,7 +57,7 @@ end ccsds_tx_framer;
 architecture structure of ccsds_tx_framer is
   component ccsds_tx_header is
     generic(
-      CCSDS_TX_HEADER_LENGTH: integer
+      constant CCSDS_TX_HEADER_LENGTH: integer
     );
     port(
       clk_i: in std_logic;
@@ -68,8 +70,8 @@ architecture structure of ccsds_tx_framer is
   end component;
   component ccsds_tx_footer is
     generic(
-      CCSDS_TX_FOOTER_DATA_LENGTH : integer;
-      CCSDS_TX_FOOTER_LENGTH: integer
+      constant CCSDS_TX_FOOTER_DATA_LENGTH : integer;
+      constant CCSDS_TX_FOOTER_LENGTH: integer
     );
     port(
       clk_i: in std_logic;
@@ -83,14 +85,11 @@ architecture structure of ccsds_tx_framer is
   end component;
 
 -- internal constants
-  constant CCSDS_TX_FRAMER_FOOTER_NUMBER : integer := integer(ceil(real((CCSDS_TX_FRAMER_HEADER_LENGTH+CCSDS_TX_FRAMER_DATA_LENGTH+CCSDS_TX_FRAMER_FOOTER_LENGTH+1)*8)/real(CCSDS_TX_FRAMER_DATA_LENGTH*8/CCSDS_TX_FRAMER_DATA_BUS_SIZE)));
+  constant CCSDS_TX_FRAMER_FOOTER_NUMBER : integer := CCSDS_TX_FRAMER_DATA_BUS_SIZE*((CCSDS_TX_FRAMER_HEADER_LENGTH+CCSDS_TX_FRAMER_DATA_LENGTH+CCSDS_TX_FRAMER_FOOTER_LENGTH)*8+1)/(CCSDS_TX_FRAMER_DATA_LENGTH*8*CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO)+1; -- 8*(HEAD+DATA+FOOT+1) clks / crc ; BUS bits / parallelism * clk ; DATA*8 bits / footer
 
 -- internal variable signals
   type frame_array is array (CCSDS_TX_FRAMER_FOOTER_NUMBER-1 downto 0) of std_logic_vector((CCSDS_TX_FRAMER_FOOTER_LENGTH+CCSDS_TX_FRAMER_DATA_LENGTH+CCSDS_TX_FRAMER_HEADER_LENGTH)*8-1 downto 0);
-  type data_header_array is array (CCSDS_TX_FRAMER_FOOTER_NUMBER-1 downto 0) of std_logic_vector((CCSDS_TX_FRAMER_DATA_LENGTH+CCSDS_TX_FRAMER_HEADER_LENGTH)*8-1 downto 0);
-
   signal wire_header_data: std_logic_vector(CCSDS_TX_FRAMER_HEADER_LENGTH*8-1 downto 0);
-  signal wire_footer_data_i: data_header_array;
   signal wire_footer_data_o: frame_array;
   signal wire_header_data_valid: std_logic;
   signal wire_footer_data_valid: std_logic_vector(CCSDS_TX_FRAMER_FOOTER_NUMBER-1 downto 0);
@@ -99,8 +98,7 @@ architecture structure of ccsds_tx_framer is
   signal wire_footer_next: std_logic_vector(CCSDS_TX_FRAMER_FOOTER_NUMBER-1 downto 0) := (others => '0');
   signal wire_footer_busy: std_logic_vector(CCSDS_TX_FRAMER_FOOTER_NUMBER-1 downto 0);
 
-  signal next_processing_frame_pointer : integer range 0 to CCSDS_TX_FRAMER_FOOTER_NUMBER-1 := 0;
-  signal next_valid_frame_pointer : integer range 0 to CCSDS_TX_FRAMER_FOOTER_NUMBER-1 := 0;
+  signal reg_next_frame: std_logic_vector((CCSDS_TX_FRAMER_DATA_LENGTH+CCSDS_TX_FRAMER_HEADER_LENGTH)*8-1 downto 0);
 
 -- components instanciation and mapping
   begin
@@ -129,11 +127,12 @@ architecture structure of ccsds_tx_framer is
         rst_i => rst_i,
         nxt_i => wire_footer_next(i),
         bus_o => wire_footer_busy(i),
-        dat_i => wire_footer_data_i(i),
+        dat_i => reg_next_frame,
         dat_o => wire_footer_data_o(i),
         dat_val_o => wire_footer_data_valid(i)
       );
     end generate FOOTERGEN;
+    nxt_dat_o <= '1';
 
 -- presynthesis checks
     CHKFRAMERP0 : if ((CCSDS_TX_FRAMER_DATA_LENGTH*8) mod CCSDS_TX_FRAMER_DATA_BUS_SIZE /= 0) generate
@@ -154,18 +153,51 @@ architecture structure of ccsds_tx_framer is
 -- internal processing
 
     --=============================================================================
-    -- Begin of framergeneratep
-    -- Generate next_frame, copy it to current frame(i), start footer computation and output valid frame
+    -- Begin of frameroutputp
+    -- Generate valid frame output on footer data_valid signal
     --=============================================================================
-    -- read: dat_val_i, rst_i, wire_data_header, wire_header_data_valid, wire_footer_data, wire_footer_data_valid
-    -- write: current_frame, nxt_dat_o, wire_header_next, wire_footer_next, nxt_dat_o
-    -- r/w: next_processing_frame_pointer, next_valid_frame_pointer
+    -- read: rst_i, wire_footer_data, wire_footer_data_valid
+    -- write: dat_o, dat_val_o
+    -- r/w: next_valid_frame_pointer
+    FRAMEROUTPUTP: process (clk_i)
+    variable next_valid_frame_pointer : integer range 0 to CCSDS_TX_FRAMER_FOOTER_NUMBER-1 := 0;
+    begin
+      -- on each clock rising edge
+      if rising_edge(clk_i) then
+        -- reset signal received
+        if (rst_i = '1') then
+          next_valid_frame_pointer := 0;
+          dat_o <= (others => '0');
+          dat_val_o <= '0';
+        -- generating valid frames output
+        else
+          dat_o <= wire_footer_data_o(next_valid_frame_pointer);
+          if (wire_footer_data_valid(next_valid_frame_pointer) = '1') then
+            dat_val_o <= '1';
+            if (next_valid_frame_pointer < (CCSDS_TX_FRAMER_FOOTER_NUMBER-1)) then
+              next_valid_frame_pointer := (next_valid_frame_pointer + 1);
+            else
+              next_valid_frame_pointer := 0;
+            end if;
+          else
+            --TODO: FRAME STUFFING HERE
+            dat_o <= (others => '0');
+            dat_val_o <= '0';
+          end if;
+        end if;
+      end if;
+    end process;
+    --=============================================================================
+    -- Begin of framergeneratep
+    -- Generate next_frame, start footer computation and next header generation
+    --=============================================================================
+    -- read: dat_val_i, rst_i, wire_header_data, wire_header_data_valid
+    -- write: wire_header_next, wire_footer_next, next_frame
+    -- r/w: 
     FRAMERGENERATEP: process (clk_i)
     variable footer_processing: std_logic := '0';
---    variable next_processing_frame_pointer : integer range 0 to CCSDS_TX_FRAMER_FOOTER_NUMBER-1 := 0;
---    variable next_valid_frame_pointer : integer range 0 to CCSDS_TX_FRAMER_FOOTER_NUMBER-1 := 0;
-    variable next_frame: std_logic_vector((CCSDS_TX_FRAMER_DATA_LENGTH+CCSDS_TX_FRAMER_HEADER_LENGTH)*8-1 downto 0);
     variable next_frame_write_pos: integer range 0 to CCSDS_TX_FRAMER_DATA_LENGTH*8-1 := CCSDS_TX_FRAMER_DATA_LENGTH*8-1;
+    variable next_processing_frame_pointer : integer range 0 to CCSDS_TX_FRAMER_FOOTER_NUMBER-1 := 0;
     begin
       -- on each clock rising edge
       if rising_edge(clk_i) then
@@ -174,55 +206,42 @@ architecture structure of ccsds_tx_framer is
           wire_header_next <= '1';
           footer_processing := '0';
           wire_footer_next <= (others => '0');
-          next_processing_frame_pointer <= 0;
-          next_valid_frame_pointer <= 0;
-          next_frame := (others => '0');
+--          reg_next_frame <= (others => '0');
           next_frame_write_pos := CCSDS_TX_FRAMER_DATA_LENGTH*8-1;
-          wire_footer_data_i <= (others => (others => '0'));
-          nxt_dat_o <= '1';
+          next_processing_frame_pointer := 0;
         else
+          if(wire_header_data_valid = '1') then
+            reg_next_frame((CCSDS_TX_FRAMER_DATA_LENGTH+CCSDS_TX_FRAMER_HEADER_LENGTH)*8-1 downto CCSDS_TX_FRAMER_DATA_LENGTH*8) <= wire_header_data;
+          end if;
           if (dat_val_i = '1') then
-            next_frame(next_frame_write_pos downto next_frame_write_pos-CCSDS_TX_FRAMER_DATA_BUS_SIZE+1) := dat_i;
+            reg_next_frame(next_frame_write_pos downto next_frame_write_pos-CCSDS_TX_FRAMER_DATA_BUS_SIZE+1) <= dat_i;
             if (next_frame_write_pos = CCSDS_TX_FRAMER_DATA_BUS_SIZE-1) then
-              wire_footer_data_i(next_processing_frame_pointer) <= next_frame;
               footer_processing := '1';
               wire_header_next <= '1';
               wire_footer_next(next_processing_frame_pointer) <= '1';
               next_frame_write_pos := CCSDS_TX_FRAMER_DATA_LENGTH*8-1;
-              if (next_processing_frame_pointer < (CCSDS_TX_FRAMER_FOOTER_NUMBER-1)) then
-                next_processing_frame_pointer <= (next_processing_frame_pointer + 1);
+              if (next_processing_frame_pointer = 0) then
+                wire_footer_next(CCSDS_TX_FRAMER_FOOTER_NUMBER-1) <= '0';
+                next_processing_frame_pointer := (next_processing_frame_pointer + 1);
+              elsif (next_processing_frame_pointer = CCSDS_TX_FRAMER_FOOTER_NUMBER-1) then
+                wire_footer_next(CCSDS_TX_FRAMER_FOOTER_NUMBER-2) <= '0';
+                next_processing_frame_pointer := 0;
               else
-                next_processing_frame_pointer <= 0;
+                wire_footer_next(next_processing_frame_pointer-1) <= '0';
+                next_processing_frame_pointer := (next_processing_frame_pointer + 1);
               end if;
             else
               wire_header_next <= '0';
               next_frame_write_pos := next_frame_write_pos-CCSDS_TX_FRAMER_DATA_BUS_SIZE;
             end if;
           else
-          --TODO: FRAME STUFFING HERE
             wire_header_next <= '0';
-          end if;
-          if(wire_header_data_valid = '1') then
-            next_frame((CCSDS_TX_FRAMER_DATA_LENGTH+CCSDS_TX_FRAMER_HEADER_LENGTH)*8-1 downto CCSDS_TX_FRAMER_DATA_LENGTH*8) := wire_header_data;
-          end if;
-          if (footer_processing = '1') then
+            --TODO: next_header with bit stuffing content flag + start CRC computation
             if (next_processing_frame_pointer > 0) then
               wire_footer_next(next_processing_frame_pointer-1) <= '0';
             else
               wire_footer_next(CCSDS_TX_FRAMER_FOOTER_NUMBER-1) <= '0';
             end if;
-            footer_processing := '0';
-          end if;
-          if (wire_footer_data_valid(next_valid_frame_pointer) = '1') then
-            dat_o <= wire_footer_data_o(next_valid_frame_pointer);
-            dat_val_o <= '1';
-            if (next_valid_frame_pointer < (CCSDS_TX_FRAMER_FOOTER_NUMBER-1)) then
-              next_valid_frame_pointer <= (next_valid_frame_pointer + 1);
-            else
-              next_valid_frame_pointer <= 0;
-            end if;
-          else
-            dat_val_o <= '0';
           end if;
         end if;
       end if;

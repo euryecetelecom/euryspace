@@ -22,6 +22,7 @@
 ---- 2016/10/19: adding sub-components (CRC + buffer) test ressources
 ---- 2016/10/25: adding framer sub-component test ressources + CRC checks
 ---- 2016/10/27: adding serdes sub-component test ressources
+---- 2016/10/30: framer tests improvements
 -------------------------------
 --TODO: functions for sub-components interactions and checks (wb_read, wb_write, buffer_read, ...)
 
@@ -48,12 +49,12 @@ entity ccsds_rxtx_bench is
     CCSDS_RXTX_BENCH_BUFFER0_SIZE : integer := 16;
     -- CRC
     CCSDS_RXTX_BENCH_CRC0_DATA: std_logic_vector := x"313233343536373839";
-    CCSDS_RXTX_BENCH_CRC0_INPUT_BYTES_REFLECTED: std_logic := '0';
-    CCSDS_RXTX_BENCH_CRC0_INPUT_REFLECTED: std_logic := '0';
+    CCSDS_RXTX_BENCH_CRC0_INPUT_BYTES_REFLECTED: boolean := false;
+    CCSDS_RXTX_BENCH_CRC0_INPUT_REFLECTED: boolean := false;
     CCSDS_RXTX_BENCH_CRC0_LENGTH: integer := 2;
-    CCSDS_RXTX_BENCH_CRC0_OUTPUT_REFLECTED: std_logic := '0';
+    CCSDS_RXTX_BENCH_CRC0_OUTPUT_REFLECTED: boolean := false;
     CCSDS_RXTX_BENCH_CRC0_POLYNOMIAL: std_logic_vector := x"1021";
-    CCSDS_RXTX_BENCH_CRC0_POLYNOMIAL_REFLECTED: std_logic := '0';
+    CCSDS_RXTX_BENCH_CRC0_POLYNOMIAL_REFLECTED: boolean := false;
     CCSDS_RXTX_BENCH_CRC0_RESULT: std_logic_vector := x"e5cc";
     CCSDS_RXTX_BENCH_CRC0_SEED: std_logic_vector := x"ffff";
     CCSDS_RXTX_BENCH_CRC0_XOR: std_logic_vector := x"0000";
@@ -62,6 +63,7 @@ entity ccsds_rxtx_bench is
     CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH: integer := 24;
     CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH: integer := 2;
     CCSDS_RXTX_BENCH_FRAMER0_HEADER_LENGTH: integer := 6;
+    CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO: integer := 2;
     -- SERDES
     CCSDS_RXTX_BENCH_SERDES0_DEPTH: integer := 32;
     -- simulation/test parameters
@@ -70,9 +72,9 @@ entity ccsds_rxtx_bench is
     CCSDS_RXTX_BENCH_CRC0_RANDOM_DATA_BUS_SIZE: integer:= 8; -- in Bytes
     CCSDS_RXTX_BENCH_CRC0_RANDOM_CHECK_NUMBER: integer:= 25;
     CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD: time := 10 ns;
-    CCSDS_RXTX_BENCH_FRAMER0_FRAME_NUMBER: integer := 25;
+    CCSDS_RXTX_BENCH_FRAMER0_FRAME_NUMBER: integer := 50;
     CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD: time := 20 ns;
-    CCSDS_RXTX_BENCH_RXTX0_WB_TX_WRITE_CYCLE_NUMBER: integer := 100;
+    CCSDS_RXTX_BENCH_RXTX0_WB_TX_WRITE_CYCLE_NUMBER: integer := 1000;
     CCSDS_RXTX_BENCH_RXTX0_RX_CLK_PERIOD: time := 10 ns;
     CCSDS_RXTX_BENCH_RXTX0_TX_CLK_PERIOD: time := 10 ns;
     CCSDS_RXTX_BENCH_SEED: integer := 123456789;
@@ -120,8 +122,8 @@ architecture behaviour of ccsds_rxtx_bench is
   end component;
   component ccsds_rxtx_buffer is
     generic(
-      CCSDS_RXTX_BUFFER_DATA_BUS_SIZE : integer;
-      CCSDS_RXTX_BUFFER_SIZE : integer
+      constant CCSDS_RXTX_BUFFER_DATA_BUS_SIZE : integer;
+      constant CCSDS_RXTX_BUFFER_SIZE : integer
     );
     port(
       clk_i: in std_logic;
@@ -137,15 +139,15 @@ architecture behaviour of ccsds_rxtx_bench is
   end component;
   component ccsds_rxtx_crc is
   generic(
-    CCSDS_RXTX_CRC_DATA_LENGTH: integer;
-    CCSDS_RXTX_CRC_FINAL_XOR: std_logic_vector;
-    CCSDS_RXTX_CRC_INPUT_BYTES_REFLECTED: std_logic;
-    CCSDS_RXTX_CRC_INPUT_REFLECTED: std_logic;
-    CCSDS_RXTX_CRC_LENGTH: integer;
-    CCSDS_RXTX_CRC_OUTPUT_REFLECTED: std_logic;
-    CCSDS_RXTX_CRC_POLYNOMIAL: std_logic_vector;
-    CCSDS_RXTX_CRC_POLYNOMIAL_REFLECTED: std_logic;
-    CCSDS_RXTX_CRC_SEED: std_logic_vector
+    constant CCSDS_RXTX_CRC_DATA_LENGTH: integer;
+    constant CCSDS_RXTX_CRC_FINAL_XOR: std_logic_vector;
+    constant CCSDS_RXTX_CRC_INPUT_BYTES_REFLECTED: boolean;
+    constant CCSDS_RXTX_CRC_INPUT_REFLECTED: boolean;
+    constant CCSDS_RXTX_CRC_LENGTH: integer;
+    constant CCSDS_RXTX_CRC_OUTPUT_REFLECTED: boolean;
+    constant CCSDS_RXTX_CRC_POLYNOMIAL: std_logic_vector;
+    constant CCSDS_RXTX_CRC_POLYNOMIAL_REFLECTED: boolean;
+    constant CCSDS_RXTX_CRC_SEED: std_logic_vector
   );
   port(
     clk_i: in std_logic;
@@ -162,10 +164,11 @@ architecture behaviour of ccsds_rxtx_bench is
   end component;
   component ccsds_tx_framer is
     generic (
-      CCSDS_TX_FRAMER_HEADER_LENGTH: integer;
-      CCSDS_TX_FRAMER_FOOTER_LENGTH: integer;
-      CCSDS_TX_FRAMER_DATA_LENGTH: integer;
-      CCSDS_TX_FRAMER_DATA_BUS_SIZE: integer
+      constant CCSDS_TX_FRAMER_HEADER_LENGTH: integer;
+      constant CCSDS_TX_FRAMER_FOOTER_LENGTH: integer;
+      constant CCSDS_TX_FRAMER_DATA_LENGTH: integer;
+      constant CCSDS_TX_FRAMER_DATA_BUS_SIZE: integer;
+      constant CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO: integer
     );
     port(
       clk_i: in std_logic;
@@ -179,7 +182,7 @@ architecture behaviour of ccsds_rxtx_bench is
   end component;
   component ccsds_rxtx_serdes is
     generic (
-      CCSDS_RXTX_SERDES_DEPTH : integer
+      constant CCSDS_RXTX_SERDES_DEPTH : integer
     );
     port(
       clk_i: in std_logic;
@@ -419,7 +422,8 @@ architecture behaviour of ccsds_rxtx_bench is
         CCSDS_TX_FRAMER_HEADER_LENGTH => CCSDS_RXTX_BENCH_FRAMER0_HEADER_LENGTH,
         CCSDS_TX_FRAMER_FOOTER_LENGTH => CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH,
         CCSDS_TX_FRAMER_DATA_LENGTH => CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH,
-        CCSDS_TX_FRAMER_DATA_BUS_SIZE => CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE
+        CCSDS_TX_FRAMER_DATA_BUS_SIZE => CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE,
+        CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO => CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO
       )
       port map(
         clk_i => bench_sti_framer0_clk,
@@ -1023,7 +1027,7 @@ architecture behaviour of ccsds_rxtx_bench is
       -- behaviour tests:
         bench_ena_framer0_random_data <= '1';
         wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
-        -- send data for 1 frame only
+        -- send data for 1 frame only / full speed
         for i in 0 to (CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH*8/CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE)-1 loop
           bench_sti_framer0_data_valid <= '1';
           wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD/2;
@@ -1064,25 +1068,51 @@ architecture behaviour of ccsds_rxtx_bench is
           report "FRAMERP: KO - Output frame is valid too long" severity warning;
         end if;
         wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD*10;
-      -- send continuous data during CCSDS_RXTX_BENCH_FRAMER0_FRAME_NUMBER*frame_duration*3 and check 1 frame over 3
+      -- send data every CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO clk during CCSDS_RXTX_BENCH_FRAMER0_FRAME_NUMBER*frame_duration*3 and check 1 frame over 3
         bench_ena_framer0_random_data <= '1';
         wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
         frame_content_ok := '1';
         for f in 0 to (CCSDS_RXTX_BENCH_FRAMER0_FRAME_NUMBER-1) loop
-          bench_sti_framer0_data_valid <= '1';
           for i in 0 to (CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH*8/CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE)-1 loop
+            bench_sti_framer0_data_valid <= '1';
             wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD/2;
             framer_expected_data(f)(i) := bench_sti_framer0_data;
             wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD/2;
+            if (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO /= 1) then
+              bench_sti_framer0_data_valid <= '0';
+              if (i /= (CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH*8/CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE)-1) then
+                wait for (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO-1)*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
+              end if;
+            end if;
           end loop;
+--          report "FRAMERP: DEBUG - Output frame generated" severity note;
           -- check output data is not valid on first frame
           if (f = 0) then
             if bench_res_framer0_data_valid = '1' then
               report "FRAMERP: KO - Output frame is valid without sent data" severity warning;
             end if;
           end if;
-          -- wait for footer to be processed
-          wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD*FRAME_PROCESSING_CYCLES_REQUIRED;
+          if (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO /= 1) then
+            wait for (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO-1)*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
+            for data_packet in 1 to (FRAME_PROCESSING_CYCLES_REQUIRED/CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO)-1 loop
+              bench_sti_framer0_data_valid <= '1';
+              wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
+              bench_sti_framer0_data_valid <= '0';
+              if (data_packet /= (FRAME_PROCESSING_CYCLES_REQUIRED/CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO)-1) then
+                wait for (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO-1)*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
+              end if;
+            end loop;
+--            report "FRAMERP: DEBUG - Loop finished" severity note;
+            wait for (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO-1)*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
+            bench_sti_framer0_data_valid <= '1';
+            wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
+            bench_sti_framer0_data_valid <= '0';
+            wait for ((FRAME_PROCESSING_CYCLES_REQUIRED mod CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO))*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
+--            report "FRAMERP: DEBUG - Wait finished" severity note;
+          else
+            -- continuous data / wait for footer to be processed
+            wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD*FRAME_PROCESSING_CYCLES_REQUIRED;
+          end if;
           if bench_res_framer0_data_valid = '0' then
             report "FRAMERP: KO - Output frame is not ready in time - frame loop: " & integer'image(f) severity warning;
           else
@@ -1093,13 +1123,25 @@ architecture behaviour of ccsds_rxtx_bench is
                 frame_content_ok := '0';
               else
                 if (i = (CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH*8/CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE)-1) and (f = (CCSDS_RXTX_BENCH_FRAMER0_FRAME_NUMBER-1)) and (frame_content_ok = '1') then
-                  report "FRAMERP: OK - Output frames are all equal to sent data" severity note;
+                  report "FRAMERP: OK - Received output frames are all equal to sent data" severity note;
                 end if;
               end if;
             end loop;
           end if;
           -- wait for current frame to be full in order to start with a new frame
-          wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD*(FRAME_ACQUISITION_CYCLES_REQUIRED - (FRAME_PROCESSING_CYCLES_REQUIRED mod FRAME_ACQUISITION_CYCLES_REQUIRED));
+          if (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO /= 1) then
+--            report "FRAMERP: DEBUG - Waiting for current frame to be full" severity note;
+            wait for (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO - (FRAME_PROCESSING_CYCLES_REQUIRED mod CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO))*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
+            for data_packet in 1 to ((FRAME_ACQUISITION_CYCLES_REQUIRED - ((FRAME_PROCESSING_CYCLES_REQUIRED/CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO) mod FRAME_ACQUISITION_CYCLES_REQUIRED))) loop
+              bench_sti_framer0_data_valid <= '1';
+              wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
+              bench_sti_framer0_data_valid <= '0';
+              wait for (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO-1)*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
+            end loop;
+--            report "FRAMERP: DEBUG - Waiting end" severity note;
+          else
+            wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD*(FRAME_ACQUISITION_CYCLES_REQUIRED - (FRAME_PROCESSING_CYCLES_REQUIRED mod FRAME_ACQUISITION_CYCLES_REQUIRED));
+          end if;
         end loop;
         bench_sti_framer0_data_valid <= '0';
         bench_ena_framer0_random_data <= '0';

@@ -3,8 +3,11 @@
 ---- Design Name: ccsds_rxtx_serdes
 ---- Version: 1.0.0
 ---- Description:
----- This is the data serialiser/deserialiser
----- requires CCSDS_RXTX_SERDES_DEPTH clk cycles to finish
+---- Constant rate data serialiser/deserialiser
+---- Input: 1 clk / [SER2PAR: dat_ser_val_i <= '1' / dat_ser_i <= 'NEXTSERIALDATA' ] / [PAR2SER: dat_par_val_i <= '1' / dat_par_i <= "PARALLELDATA"]
+---- Timing requirements: SER2PAR: 1 clock cycle - PAR2SER: CCSDS_RXTX_SERDES_DEPTH clock cycles
+---- Output: [SER2PAR: dat_par_val_o <= "1" / dat_par_o <= "PARALLELIZEDDATA"] / [PAR2SER: dat_ser_val_o <= "1" / dat_ser_o <= "SERIALIZEDDATA"]
+---- Ressources requirements: CCSDS_RXTX_SERDES_DEPTH + 2*|log(CCSDS_RXTX_SERDES_DEPTH-1)/log(2)| + 2 registers
 -------------------------------
 ---- Author(s):
 ---- Guillaume Rembert
@@ -28,7 +31,7 @@ use work.ccsds_rxtx_parameters.all;
 --=============================================================================
 entity ccsds_rxtx_serdes is
   generic (
-    CCSDS_RXTX_SERDES_DEPTH : integer
+    constant CCSDS_RXTX_SERDES_DEPTH : integer
   );
   port(
     -- inputs
@@ -86,7 +89,7 @@ architecture rtl of ccsds_rxtx_serdes is
             dat_ser_o <= '0';
             wire_data_ser_valid <= '0';
             parallel_data_pointer <= CCSDS_RXTX_SERDES_DEPTH-1;
-            serdes_memory := (others => '0');
+--            serdes_memory := (others => '0');
           else
             if (dat_par_val_i = '1') and (parallel_data_pointer = CCSDS_RXTX_SERDES_DEPTH-1) then
               wire_busy <= '1';

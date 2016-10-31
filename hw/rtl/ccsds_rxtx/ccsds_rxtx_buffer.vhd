@@ -4,6 +4,10 @@
 ---- Version: 1.0.0
 ---- Description:
 ---- FIFO circular buffer
+---- Input: 1 clk / [STORE: dat_val_i <= '1' / dat_i <= "STOREDDATA" ] / [READ: nxt_i <= '1']
+---- Timing requirements: 1 clock cycle
+---- Output: [READ: dat_val_o <= "1" / dat_o <= "STOREDDATA"]
+---- Ressources requirements: CCSDS_RXTX_BUFFER_DATA_BUS_SIZE*(CCSDS_RXTX_BUFFER_SIZE+1) + 2*|log(CCSDS_RXTX_BUFFER_SIZE-1)/log(2)| + 2 + 3 + CCSDS_RXTX_BUFFER_DATA_BUS_SIZE registers
 -------------------------------
 ---- Author(s):
 ---- Guillaume REMBERT
@@ -25,8 +29,8 @@ use ieee.std_logic_1164.all;
 --=============================================================================
 entity ccsds_rxtx_buffer is
   generic(
-    CCSDS_RXTX_BUFFER_DATA_BUS_SIZE : integer;
-    CCSDS_RXTX_BUFFER_SIZE : integer
+    constant CCSDS_RXTX_BUFFER_DATA_BUS_SIZE : integer; -- in bits
+    constant CCSDS_RXTX_BUFFER_SIZE : integer
   );
   port(
     -- inputs
@@ -106,7 +110,7 @@ architecture rtl of ccsds_rxtx_buffer is
     begin
       if rising_edge(clk_i) then
         if (rst_i = '1') then
-          buffer_data <= (others => (others => '0'));
+--          buffer_data <= (others => (others => '0'));
           buf_ful_o <= '0';
           buffer_write_pos <= 0;
         else

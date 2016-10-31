@@ -32,8 +32,8 @@ use ieee.std_logic_1164.all;
 --=============================================================================
 entity ccsds_tx_footer is
   generic(
-    CCSDS_TX_FOOTER_DATA_LENGTH: integer; -- in Bytes
-    CCSDS_TX_FOOTER_LENGTH: integer -- in Bytes
+    constant CCSDS_TX_FOOTER_DATA_LENGTH: integer; -- in Bytes
+    constant CCSDS_TX_FOOTER_LENGTH: integer -- in Bytes
   );
   port(
     -- inputs
@@ -54,8 +54,8 @@ end ccsds_tx_footer;
 architecture rtl of ccsds_tx_footer is
   component ccsds_rxtx_crc is
     generic(
-      CCSDS_RXTX_CRC_LENGTH: integer;
-      CCSDS_RXTX_CRC_DATA_LENGTH: integer
+      constant CCSDS_RXTX_CRC_LENGTH: integer;
+      constant CCSDS_RXTX_CRC_DATA_LENGTH: integer
     );
     port(
       clk_i: in std_logic;

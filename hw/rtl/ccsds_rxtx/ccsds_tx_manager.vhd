@@ -3,7 +3,7 @@
 ---- Design Name: ccsds_tx_manager
 ---- Version: 1.0.0
 ---- Description:
----- TBD - in charge of clock enable/disable + input switch / ser to par conversion
+---- In charge of clock forwarding to reduce power draw + select TX input data
 -------------------------------
 ---- Author(s):
 ---- Guillaume REMBERT
@@ -13,8 +13,8 @@
 -------------------------------
 ---- Changes list:
 ---- 2016/10/16: initial release
+---- 2016/10/31: add serdes sub-component
 -------------------------------
---TODO: use dedicated serdes component
 
 -- libraries used
 library ieee;
@@ -48,65 +48,77 @@ end ccsds_tx_manager;
 -- architecture declaration / internal connections
 --=============================================================================
 architecture structure of ccsds_tx_manager is
+  component ccsds_rxtx_serdes is
+    generic (
+      constant CCSDS_RXTX_SERDES_DEPTH : integer
+    );
+    port(
+      clk_i: in std_logic;
+      dat_par_i: in std_logic_vector(CCSDS_RXTX_SERDES_DEPTH-1 downto 0);
+      dat_par_val_i: in std_logic;
+      dat_ser_i: in std_logic;
+      dat_ser_val_i: in std_logic;
+      rst_i: in std_logic;
+      bus_o: out std_logic;
+      dat_par_o: out std_logic_vector(CCSDS_RXTX_SERDES_DEPTH-1 downto 0);
+      dat_par_val_o: out std_logic;
+      dat_ser_o: out std_logic;
+      dat_ser_val_o: out std_logic
+    );
+  end component;
 
 -- interconnection signals
+  signal gated_clock: std_logic;
+  signal wire_serdes_dat_par_o: std_logic_vector(CCSDS_TX_MANAGER_DATA_BUS_SIZE-1 downto 0);
+  signal wire_serdes_dat_par_val_o: std_logic;
+  signal wire_serdes_dat_ser_val_i: std_logic;
 
--- components instanciation and mapping
   begin
+-- components instanciation and mapping
+    serdes_001: ccsds_rxtx_serdes
+      generic map(
+        CCSDS_RXTX_SERDES_DEPTH => CCSDS_TX_MANAGER_DATA_BUS_SIZE
+      )
+      port map(
+        clk_i => gated_clock,
+        dat_par_i => (others => '0'),
+        dat_par_val_i => '0',
+        dat_ser_i => dat_ser_i,
+        dat_ser_val_i => wire_serdes_dat_ser_val_i,
+        rst_i => rst_i,
+        dat_par_o => wire_serdes_dat_par_o,
+        dat_par_val_o => wire_serdes_dat_par_val_o
+      );
+
+    ena_o <= ena_i;
+    clk_o <= clk_i and ena_i;
+    gated_clock <= clk_i and ena_i;
+    
     --=============================================================================
-    -- Begin of enablep
-    -- Enable/disable clk forwarding
+    -- Begin of selectp
+    -- Input selection
     --=============================================================================
-    -- read: ena_i
-    -- write: clk_o, enabled_o
+    -- read: rst_i, ena_i, in_sel_i, dat_val_i
+    -- write: dat_o, dat_val_o, wire_serdes_dat_ser_val_i
     -- r/w: 
-    ENABLEP : process (ena_i, clk_i)
-    begin
-      if (ena_i = '1') then
-        clk_o <= clk_i;
-        ena_o <= '1';
-      else
-        clk_o <= '0';
-        ena_o <= '0';
-      end if;
-    end process;
-    --=============================================================================
-    -- Begin of serparp
-    -- Serial to parallel data if in_sel_i = 1 / first input bit as MSB
-    --=============================================================================
-    -- read: clk_i, rst_i, ena_i, dat_val_i, in_sel_i
-    -- write: dat_o, dat_val_o
-    -- r/w: 
-    SERPARP : process (clk_i)
+    SELECTP : process (gated_clock)
     -- variables instantiation
-    variable circular_pointer: integer range 0 to CCSDS_TX_MANAGER_DATA_BUS_SIZE-1 := CCSDS_TX_MANAGER_DATA_BUS_SIZE-1;
     begin
       -- on each clock rising edge
-      if rising_edge(clk_i) then
+      if rising_edge(gated_clock) then
         if (rst_i = '1') then
           dat_o <= (others => '0');
           dat_val_o <= '0';
+          wire_serdes_dat_ser_val_i <= '0';
         else
-          if (ena_i = '1') then
-            if (dat_val_i = '1') then
-              if (in_sel_i = '1') then
-                dat_o(circular_pointer) <= dat_ser_i;
-                if (circular_pointer = 0) then
-                  dat_val_o <= '1';
-                  circular_pointer := CCSDS_TX_MANAGER_DATA_BUS_SIZE-1;
-                else
-                  dat_val_o <= '0';
-                  circular_pointer := circular_pointer - 1;
-                end if;
-              else
-                dat_val_o <= '1';
-                dat_o <= dat_par_i;
-              end if;
-            else
-              dat_val_o <= '0';
-            end if;
+          if (in_sel_i = '1') then
+            wire_serdes_dat_ser_val_i <= '1';
+            dat_o <= wire_serdes_dat_par_o;
+            dat_val_o <= wire_serdes_dat_par_val_o;
           else
-            dat_val_o <= '0';
+            wire_serdes_dat_ser_val_i <= '0';
+            dat_val_o <= dat_val_i;
+            dat_o <= dat_par_i;
           end if;
         end if;
       end if;

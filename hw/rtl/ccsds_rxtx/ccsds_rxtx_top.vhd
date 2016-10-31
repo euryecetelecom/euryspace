@@ -220,7 +220,7 @@ begin
           ccsds_rxtx_dyn_wb_state := 0;
           -- reinitialize all outputs
           wire_tx_ext <= CCSDS_RXTX_CST_TX_AUTO_EXTERNAL;
- 	  if (CCSDS_RXTX_CST_TX_AUTO_EXTERNAL = '0') then
+ 	        if (CCSDS_RXTX_CST_TX_AUTO_EXTERNAL = '0') then
        	    wire_tx_data_valid <= '0';
        	  else
        	    wire_tx_data_valid <= '1';
