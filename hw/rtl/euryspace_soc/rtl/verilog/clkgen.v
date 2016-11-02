@@ -32,7 +32,6 @@
 ////                                                              ////
 //////////////////////////////////////////////////////////////////////
 
-`include "timescale.v"
 `include "euryspace-defines.v"
 
 module clkgen

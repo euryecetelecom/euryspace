@@ -1,4 +1,3 @@
-`include "timescale.v"
 `include "euryspace-defines.v"
 
 module euryspace_tb;
@@ -8,8 +7,13 @@ module euryspace_tb;
 // Boot ROM selection
 //
 ////////////////////////////////////////////////////////////////////////
-   localparam BOOTROM_FILE = "../src/euryspace/sw/clear_r3_and_jump_to_0x100.vh";
-   //localparam BOOTROM_FILE = "../src/euryspace/sw/spi_uimage_loader.vh";
+   localparam BOOTROM_FILE = "../src/euryspace_0/sw/clear_r3_and_jump_to_0x100.vh";
+   //localparam BOOTROM_FILE = "../src/euryspace_0/sw/spi_uimage_loader.vh";
+   /*
+    When the SPI uimage loader is used, the following parameter can be
+    set to provide alternative SPI Flash contents
+    */
+   parameter spi_flash_file = "../src/euryspace_0/bench/spi_image.vh";
 
 reg clk   = 0;
 reg rst_n = 0;

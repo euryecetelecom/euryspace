@@ -4,14 +4,11 @@
 //
 // Instantiates modules, depending on ORPSoC defines file
 //
-// Copyright (C) 2013 Stefan Kristiansson
-//  <stefan.kristiansson@saunalahti.fi
-//
-// Based on de1 board by
-// Franck Jullien, franck.jullien@gmail.com
-// Which probably was based on the or1200-generic board by
-// Olof Kindgren, which in turn was based on orpsocv2 boards by
-// Julius Baxter.
+// Based on work by
+// Stefan Kristiansson
+// Franck Jullien
+// Olof Kindgren
+// Julius Baxter
 //
 //////////////////////////////////////////////////////////////////////
 //
@@ -41,70 +38,66 @@
 `include "euryspace-defines.v"
 
 module orpsoc_top #(
-	parameter       BOOTROM_FILE = "../src/euryspace/sw/spi_uimage_loader.vh",
-	parameter	uart0_wb_adr_width = 3,
-        parameter       i2c0_wb_adr_width = 3,
-        parameter       spi0_wb_adr_width = 3,
-        parameter	ccsds_rxtx0_wb_adr_width = 4,
-        parameter	ccsds_rxtx0_rx_samples_width = 16,
-        parameter	ccsds_rxtx0_tx_samples_width = 16,
-        parameter       HV1_SADR = 8'h45
+	parameter EURYSPACE_BOOTROM_FILE = "../src/euryspace_0/sw/spi_uimage_loader.vh",
+	parameter	EURYSPACE_UART0_WB_ADR_WIDTH = 3,
+  parameter EURYSPACE_I2C0_WB_ADR_WIDTH = 3,
+  parameter EURYSPACE_SPI0_WB_ADR_WIDTH = 3,
+  parameter	EURYSPACE_CCSDS_RXTX0_WB_ADR_WIDTH = 4,
+  parameter	EURYSPACE_CCSDS_RXTX0_RX_SAM_WIDTH = 16,
+  parameter	EURYSPACE_CCSDS_RXTX0_TX_SAM_WIDTH = 16,
+  parameter EURYSPACE_I2C0_SADR = 8'h45
 )(
-	input		sys_clk_pad_i,
-	input		rst_n_pad_i,
+	input sys_clk_pad_i,
+	input rst_n_pad_i,
 
 `ifdef SIM
-	output		tdo_pad_o,
-	input		tms_pad_i,
-	input		tck_pad_i,
-	input		tdi_pad_i,
+	output tdo_pad_o,
+	input	 tms_pad_i,
+	input	 tck_pad_i,
+	input	 tdi_pad_i,
 `endif
 
-	output	[1:0]	sdram_ba_pad_o,
-	output	[12:0]	sdram_a_pad_o,
-	output		sdram_cs_n_pad_o,
-	output		sdram_ras_pad_o,
-	output		sdram_cas_pad_o,
-	output		sdram_we_pad_o,
-	inout	[15:0]	sdram_dq_pad_io,
-	output	[1:0]	sdram_dqm_pad_o,
-	output		sdram_cke_pad_o,
-	output		sdram_clk_pad_o,
+	output [1:0] sdram_ba_pad_o,
+	output [12:0] sdram_a_pad_o,
+	output sdram_cs_n_pad_o,
+	output sdram_ras_pad_o,
+	output sdram_cas_pad_o,
+	output sdram_we_pad_o,
+	inout	 [15:0] sdram_dq_pad_io,
+	output [1:0] sdram_dqm_pad_o,
+	output sdram_cke_pad_o,
+	output sdram_clk_pad_o,
 
-	input		uart0_srx_pad_i,
-	output		uart0_stx_pad_o,
-        output		uart0_gnd_pad_o,
+	input  uart0_srx_pad_i,
+	output uart0_stx_pad_o,
 
 `ifdef GPIO0
 	inout	[7:0]	gpio0_io,
 `endif
 
 `ifdef I2C0
-	inout		i2c0_sda_io,
-	inout		i2c0_scl_io,
+	inout	i2c0_sda_io,
+	inout	i2c0_scl_io,
 `endif
 
 `ifdef CCSDS_RXTX0
-	input	[ccsds_rxtx0_rx_samples_width-1:0]	ccsds_rxtx0_rx_sam_i_i,
-	input	[ccsds_rxtx0_rx_samples_width-1:0]	ccsds_rxtx0_rx_sam_q_i,
-	input		ccsds_rxtx0_rx_clk_i,
-	output 		ccsds_rxtx0_rx_ena_o,
-	output	 	ccsds_rxtx0_rx_irq_o,
-	input		ccsds_rxtx0_tx_dat_ser_i,
-	input		ccsds_rxtx0_tx_clk_i,
-	output	[ccsds_rxtx0_tx_samples_width-1:0]	ccsds_rxtx0_tx_sam_i_o,
-	output	[ccsds_rxtx0_tx_samples_width-1:0]	ccsds_rxtx0_tx_sam_q_o,
-	output		ccsds_rxtx0_tx_clk_o,
-	output 		ccsds_rxtx0_tx_ena_o,
+	input	 [EURYSPACE_CCSDS_RXTX0_RX_SAM_WIDTH-1:0]	ccsds_rxtx0_rx_sam_i_i,
+	input	 [EURYSPACE_CCSDS_RXTX0_RX_SAM_WIDTH-1:0]	ccsds_rxtx0_rx_sam_q_i,
+	input	 ccsds_rxtx0_rx_clk_i,
+	output ccsds_rxtx0_rx_ena_o,
+	input	 ccsds_rxtx0_tx_dat_ser_i,
+	input	 ccsds_rxtx0_tx_clk_i,
+	output [EURYSPACE_CCSDS_RXTX0_TX_SAM_WIDTH-1:0]	ccsds_rxtx0_tx_sam_i_o,
+	output [EURYSPACE_CCSDS_RXTX0_TX_SAM_WIDTH-1:0]	ccsds_rxtx0_tx_sam_q_o,
+	output ccsds_rxtx0_tx_clk_o,
+	output ccsds_rxtx0_tx_ena_o,
 `endif
 
 `ifdef SPI0
-    output          spi0_sck_o,
-    output          spi0_mosi_o,
-    input           spi0_miso_i,
- `ifdef SPI0_SLAVE_SELECTS
-    output          spi0_ss_o
- `endif
+    output spi0_sck_o,
+    output spi0_mosi_o,
+    input  spi0_miso_i,
+    output spi0_ss_o
 `endif
 
 );
@@ -259,7 +252,6 @@ mor1kx #(
 	.OPTION_DCACHE_LIMIT_WIDTH(31),
 	.FEATURE_DMMU("ENABLED"),
 	.OPTION_PIC_TRIGGER("LATCHED_LEVEL"),
-
 	.IBUS_WB_TYPE("B3_REGISTERED_FEEDBACK"),
 	.DBUS_WB_TYPE("B3_REGISTERED_FEEDBACK"),
 	.OPTION_CPU0("CAPPUCCINO"),
@@ -315,6 +307,19 @@ mor1kx #(
 	.avm_i_readdatavalid_i (1'b0),
 
 	.irq_i(or1k_irq),
+
+	.traceport_exec_valid_o  (),
+	.traceport_exec_pc_o     (),
+	.traceport_exec_insn_o   (),
+	.traceport_exec_wbdata_o (),
+	.traceport_exec_wbreg_o  (),
+	.traceport_exec_wben_o   (),
+
+	.multicore_coreid_i   (32'd0),
+	.multicore_numcores_i (32'd0),
+
+	.snoop_adr_i (32'd0),
+	.snoop_en_i  (1'b0),
 
 	.du_addr_i(or1k_dbg_adr_i[15:0]),
 	.du_stb_i(or1k_dbg_stb_i),
@@ -395,11 +400,11 @@ adbg_top dbg_if0 (
 //
 ////////////////////////////////////////////////////////////////////////
 
-   localparam WB_BOOTROM_MEM_DEPTH = 1024;
+   localparam EURYSPACE_WB_BOOTROM_MEM_DEPTH = 1024;
    
 wb_bootrom
-  #(.DEPTH (WB_BOOTROM_MEM_DEPTH),
-    .MEMFILE (BOOTROM_FILE))
+  #(.DEPTH (EURYSPACE_WB_BOOTROM_MEM_DEPTH),
+    .MEMFILE (EURYSPACE_BOOTROM_FILE))
    bootrom
      (//Wishbone Master interface
       .wb_clk_i (wb_clk),
@@ -412,7 +417,7 @@ wb_bootrom
 
    assign wb_s2m_rom0_err = 1'b0;
    assign wb_s2m_rom0_rty = 1'b0;
-  
+
 ////////////////////////////////////////////////////////////////////////
 //
 // SDRAM Memory Controller
@@ -439,6 +444,7 @@ wb_sdram_ctrl #(
 `endif
 	.CLK_FREQ_MHZ			(100),	// sdram_clk freq in MHZ
 	.POWERUP_DELAY			(200),	// power up delay in us
+	.REFRESH_MS			(32),	// delay between refresh cycles im ms
 	.WB_PORTS			(2),	// Number of wishbone ports
 	.ROW_WIDTH			(13),	// Row width
 	.COL_WIDTH			(9),	// Column width
@@ -489,16 +495,14 @@ wb_sdram_ctrl0 (
 
 wire	uart0_irq;
 
-
 assign wb_s2m_uart0_err = 0;
 assign wb_s2m_uart0_rty = 0;
-assign uart0_gnd_pad_o = 1'b0;
 
 uart_top uart16550_0 (
 	// Wishbone slave interface
 	.wb_clk_i	(wb_clk),
 	.wb_rst_i	(wb_rst),
-	.wb_adr_i	(wb_m2s_uart0_adr[uart0_wb_adr_width-1:0]),
+	.wb_adr_i	(wb_m2s_uart0_adr[EURYSPACE_UART0_WB_ADR_WIDTH-1:0]),
 	.wb_dat_i	(wb_m2s_uart0_dat),
 	.wb_we_i	(wb_m2s_uart0_we),
 	.wb_stb_i	(wb_m2s_uart0_stb),
@@ -540,14 +544,14 @@ wire 		sda0_padoen_o;
 i2c_master_top
  #
  (
-  .DEFAULT_SLAVE_ADDR(HV1_SADR)
+  .DEFAULT_SLAVE_ADDR(EURYSPACE_I2C0_SADR)
  )
 i2c0
   (
    .wb_clk_i			     (wb_clk),
    .wb_rst_i			     (wb_rst),
    .arst_i			     (wb_rst),
-   .wb_adr_i			     (wb_m2s_i2c0_adr[i2c0_wb_adr_width-1:0]),
+   .wb_adr_i			     (wb_m2s_i2c0_adr[EURYSPACE_I2C0_WB_ADR_WIDTH-1:0]),
    .wb_dat_i			     (wb_m2s_i2c0_dat),
    .wb_we_i			     (wb_m2s_i2c0_we),
    .wb_cyc_i			     (wb_m2s_i2c0_cyc),
@@ -597,7 +601,7 @@ ccsds_rxtx_top ccsds_rxtx_0 (
 	// Wishbone slave interface
 	.wb_clk_i	(wb_clk),
 	.wb_rst_i	(wb_rst),
-	.wb_adr_i	(wb_m2s_ccsds_rxtx0_adr[ccsds_rxtx0_wb_adr_width-1:0]),
+	.wb_adr_i	(wb_m2s_ccsds_rxtx0_adr[EURYSPACE_CCSDS_RXTX0_WB_ADR_WIDTH-1:0]),
 	.wb_dat_i	(wb_m2s_ccsds_rxtx0_dat),
 	.wb_we_i	(wb_m2s_ccsds_rxtx0_we),
 	.wb_stb_i	(wb_m2s_ccsds_rxtx0_stb),
@@ -643,16 +647,12 @@ wire            spi0_irq;
 //
 // Assigns
 //
-assign  wbs_d_spi0_err_o = 0;
-assign  wbs_d_spi0_rty_o = 0;
-assign  spi0_hold_n_o = 1;
-assign  spi0_w_n_o = 1;
 
 simple_spi spi0(
 	// Wishbone slave interface
 	.clk_i	(wb_clk),
 	.rst_i	(wb_rst),
-	.adr_i	(wb_m2s_spi0_adr[spi0_wb_adr_width-1:0]),
+	.adr_i	(wb_m2s_spi0_adr[EURYSPACE_SPI0_WB_ADR_WIDTH-1:0]),
 	.dat_i	(wb_m2s_spi0_dat),
 	.we_i	(wb_m2s_spi0_we),
 	.stb_i	(wb_m2s_spi0_stb),
@@ -663,11 +663,7 @@ simple_spi spi0(
 	// Outputs
 	.inta_o		(spi0_irq),
 	.sck_o		(spi0_sck_o),
- `ifdef SPI0_SLAVE_SELECTS
 	.ss_o		(spi0_ss_o),
- `else
-	.ss_o		(),
- `endif
 	.mosi_o		(spi0_mosi_o),
 
 	// Inputs
@@ -756,7 +752,7 @@ assign or1k_irq[16] = 0;
 assign or1k_irq[17] = 0;
 assign or1k_irq[18] = 0;
 assign or1k_irq[19] = 0;
-`ifdef CCSDS_RXTX
+`ifdef CCSDS_RXTX0
    assign or1k_irq[20] = ccsds_rxtx0_irq;
 `else
    assign or1k_irq[20] = 0;

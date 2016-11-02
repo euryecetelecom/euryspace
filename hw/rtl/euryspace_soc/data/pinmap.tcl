@@ -7,14 +7,12 @@ set_location_assignment PIN_R8 -to sys_clk_pad_i
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sys_clk_pad_i
 
 #
-# UART0: PINS GND <-> GPIO_120 (n°23) / RX <-> GPIO_124 (n°27) / TX <-> GPIO_126 (n°29)
+# UART0: PINS RX <-> GPIO_124 (n°27) / TX <-> GPIO_126 (n°29)
 #
 set_location_assignment PIN_N15 -to uart0_srx_pad_i
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to uart0_srx_pad_i
 set_location_assignment PIN_L14 -to uart0_stx_pad_o
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to uart0_stx_pad_o
-set_location_assignment PIN_P15 -to uart0_gnd_pad_o
-set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to uart0_gnd_pad_o
 
 #
 # CCSDS_RXTX0: PINS
@@ -24,14 +22,14 @@ set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to uart0_gnd_pad_o
 #set_location_assignment PIN_E1 -to ccsds_rxtx0_rx_clk_i
 #set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_rx_clk_i
 #Switch 0 as i serial samples
-#set_location_assignment PIN_M1 -to ccsds_rxtx0_rx_i_samples_ser_i
-#set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_rx_i_samples_ser_i
+#set_location_assignment PIN_M1 -to ccsds_rxtx0_rx_sam_i_i
+#set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_rx_sam_i_i
 #Switch 1 as q serial samples
-#set_location_assignment PIN_T8 -to ccsds_rxtx0_rx_q_samples_ser_i
-#set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_rx_q_samples_ser_i
-#LED 0 as RX ok
-set_location_assignment PIN_A15 -to ccsds_rxtx0_rx_ok_o
-set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_rx_ok_o
+#set_location_assignment PIN_T8 -to ccsds_rxtx0_rx_sam_q_i
+#set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_rx_sam_q_i
+#LED 0 as RX enabled
+set_location_assignment PIN_A15 -to ccsds_rxtx0_rx_ena_o
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_rx_ena_o
 #LED 1 as demodulated data clk
 #set_location_assignment PIN_A13 -to ccsds_rxtx0_rx_clk_o
 #set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_rx_clk_o
@@ -43,23 +41,23 @@ set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_rx_ok_o
 set_location_assignment PIN_D3 -to ccsds_rxtx0_tx_clk_i
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_tx_clk_i
 #GPIO_01 as external serial data input
-set_location_assignment PIN_C3 -to ccsds_rxtx0_tx_data_ser_i
-set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_tx_data_ser_i
-#GPIO_O27 as valid samples output
-set_location_assignment PIN_E10 -to ccsds_rxtx0_tx_samples_valid_o
-set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_tx_samples_valid_o
-#GPIO_O29 as serial i samples output
-set_location_assignment PIN_B11 -to ccsds_rxtx0_tx_i_samples_ser_o
-set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_tx_i_samples_ser_o
-#GPIO_O31 as serial q samples output
-set_location_assignment PIN_D11 -to ccsds_rxtx0_tx_q_samples_ser_o
-set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_tx_q_samples_ser_o
+set_location_assignment PIN_C3 -to ccsds_rxtx0_tx_dat_ser_i
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_tx_dat_ser_i
+#GPIO_O27 as ??
+#set_location_assignment PIN_E10 -to ccsds_rxtx0_tx_sam_val_o
+#set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_tx_samples_valid_o
+#GPIO_O29 as LSB i samples output
+set_location_assignment PIN_B11 -to ccsds_rxtx0_tx_sam_i_o[0]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_tx_sam_i_o[0]
+#GPIO_O31 as LSB q samples output
+set_location_assignment PIN_D11 -to ccsds_rxtx0_tx_sam_q_o[0]
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_tx_sam_q_o[0]
 #GPIO_O33 as samples clk output
 set_location_assignment PIN_B12 -to ccsds_rxtx0_tx_clk_o
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_tx_clk_o
-#LED 7 as TX ok
-set_location_assignment PIN_L3 -to ccsds_rxtx0_tx_ok_o
-set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_tx_ok_o
+#LED 7 as TX enabled
+set_location_assignment PIN_L3 -to ccsds_rxtx0_tx_ena_o
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to ccsds_rxtx0_tx_ena_o
 
 #
 # GPIO0 => LEDS
@@ -202,8 +200,6 @@ set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sdram_we_pad_o
 set_location_assignment PIN_R4 -to sdram_clk_pad_o
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sdram_clk_pad_o
 
-
-
 #ADC
 #set_location_assignment PIN_B10 -to spi1_mosi_o
 #set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to spi1_mosi_o
@@ -229,6 +225,3 @@ set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to sdram_clk_pad_o
 #GPIO_2_IN[0] PIN_E15
 #GPIO_2_IN[1] PIN_E16
 #GPIO_2_IN[2] PIN_M16
-
-
-
