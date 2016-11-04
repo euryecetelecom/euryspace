@@ -26,6 +26,7 @@ use ieee.math_real.all;
 --=============================================================================
 entity ccsds_tx_datalink_layer is
   generic (
+    constant CCSDS_TX_DATALINK_ASM_LENGTH: integer := 4; -- Attached Synchronization Marker length / in Bytes
     constant CCSDS_TX_DATALINK_DATA_BUS_SIZE: integer := 32; -- in bits
     constant CCSDS_TX_DATALINK_DATA_LENGTH: integer := 24; -- datagram data size (Bytes) / (has to be a multiple of CCSDS_TX_DATALINK_DATA_BUS_SIZE)
     constant CCSDS_TX_DATALINK_FOOTER_LENGTH: integer := 2; -- datagram footer length (Bytes)
@@ -66,12 +67,28 @@ architecture structure of ccsds_tx_datalink_layer is
       dat_val_o: out std_logic
     );
   end component;
+  component ccsds_tx_coder is
+    generic(
+      CCSDS_TX_CODER_DATA_BUS_SIZE : integer;
+      CCSDS_TX_CODER_ASM_LENGTH: integer
+    );
+    port(
+      clk_i: in std_logic;
+      dat_i: in std_logic_vector(CCSDS_TX_CODER_DATA_BUS_SIZE-1 downto 0);
+      dat_val_i: in std_logic;
+      rst_i: in std_logic;
+      dat_o: out std_logic_vector(CCSDS_TX_CODER_DATA_BUS_SIZE+CCSDS_TX_CODER_ASM_LENGTH*8-1 downto 0);
+      dat_val_o: out std_logic
+    );
+  end component;
 
 -- internal constants
 
 -- interconnection signals
   signal wire_framer_data: std_logic_vector((CCSDS_TX_DATALINK_DATA_LENGTH+CCSDS_TX_DATALINK_HEADER_LENGTH+CCSDS_TX_DATALINK_FOOTER_LENGTH)*8-1 downto 0);
   signal wire_framer_data_valid: std_logic;
+  signal wire_coder_data: std_logic_vector((CCSDS_TX_DATALINK_DATA_LENGTH+CCSDS_TX_DATALINK_HEADER_LENGTH+CCSDS_TX_DATALINK_FOOTER_LENGTH+CCSDS_TX_DATALINK_ASM_LENGTH)*8-1 downto 0);
+  signal wire_coder_data_valid: std_logic;
 
 -- components instanciation and mapping
   begin
@@ -91,13 +108,23 @@ architecture structure of ccsds_tx_datalink_layer is
       dat_val_o => wire_framer_data_valid,
       dat_o => wire_framer_data
     );
+  tx_datalink_coder_0: ccsds_tx_coder
+    generic map(
+      CCSDS_TX_CODER_ASM_LENGTH => CCSDS_TX_DATALINK_ASM_LENGTH,
+      CCSDS_TX_CODER_DATA_BUS_SIZE => (CCSDS_TX_DATALINK_DATA_LENGTH+CCSDS_TX_DATALINK_HEADER_LENGTH+CCSDS_TX_DATALINK_FOOTER_LENGTH)*8
+    )
+    port map(
+      clk_i => clk_i,
+      dat_i => wire_framer_data,
+      dat_val_i => wire_framer_data_valid,
+      rst_i => rst_i,
+      dat_val_o => wire_coder_data_valid,
+      dat_o => wire_coder_data
+    );
     
   buf_dat_ful_o <= '0';
-  dat_val_o <= wire_framer_data_valid;
-  dat_o <= wire_framer_data(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
-
+  dat_val_o <= wire_coder_data_valid;
+  dat_o <= wire_coder_data(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
 -- internal processing
-
---  constant TX_DATALINK_CCSDS_ASM_SEQUENCE : std_logic_vector(31 downto 0) := "00011010110011111111110000011101"; -- TRAINING SEQUENCE (FOR SYNCHRONIZATION PURPOSES)
 
 end structure;

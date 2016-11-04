@@ -23,6 +23,7 @@
 ---- 2016/10/25: adding framer sub-component test ressources + CRC checks
 ---- 2016/10/27: adding serdes sub-component test ressources
 ---- 2016/10/30: framer tests improvements
+---- 2016/11/04: adding lfsr sub-component test ressources
 -------------------------------
 --TODO: functions for sub-components interactions and checks (wb_read, wb_write, buffer_read, ...)
 
@@ -64,6 +65,12 @@ entity ccsds_rxtx_bench is
     CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH: integer := 2;
     CCSDS_RXTX_BENCH_FRAMER0_HEADER_LENGTH: integer := 6;
     CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO: integer := 2;
+    -- LFSR
+		CCSDS_RXTX_BENCH_LFSR0_RESULT: std_logic_vector := "1111111101001000000011101100000010011010";
+		CCSDS_RXTX_BENCH_LFSR0_MEMORY_SIZE: integer := 8;
+		CCSDS_RXTX_BENCH_LFSR0_MODE: std_logic := '0';
+		CCSDS_RXTX_BENCH_LFSR0_POLYNOMIAL: std_logic_vector	:= x"A9";
+		CCSDS_RXTX_BENCH_LFSR0_SEED: std_logic_vector	:= x"FF";
     -- SERDES
     CCSDS_RXTX_BENCH_SERDES0_DEPTH: integer := 32;
     -- simulation/test parameters
@@ -73,6 +80,7 @@ entity ccsds_rxtx_bench is
     CCSDS_RXTX_BENCH_CRC0_RANDOM_CHECK_NUMBER: integer:= 25;
     CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD: time := 10 ns;
     CCSDS_RXTX_BENCH_FRAMER0_FRAME_NUMBER: integer := 25;
+    CCSDS_RXTX_BENCH_LFSR0_CLK_PERIOD: time := 10 ns;
     CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD: time := 20 ns;
     CCSDS_RXTX_BENCH_RXTX0_WB_TX_WRITE_CYCLE_NUMBER: integer := 1000;
     CCSDS_RXTX_BENCH_RXTX0_RX_CLK_PERIOD: time := 10 ns;
@@ -83,6 +91,7 @@ entity ccsds_rxtx_bench is
     CCSDS_RXTX_BENCH_START_BUFFER_WAIT_DURATION: time := 1500 ns;
     CCSDS_RXTX_BENCH_START_CRC_WAIT_DURATION: time := 1500 ns;
     CCSDS_RXTX_BENCH_START_FRAMER_WAIT_DURATION: time := 1500 ns;
+    CCSDS_RXTX_BENCH_START_LFSR_WAIT_DURATION: time := 1500 ns;
     CCSDS_RXTX_BENCH_START_FREE_RUN_DURATION: time := 1000 ns;
     CCSDS_RXTX_BENCH_START_RESET_SIG_DURATION: time := 500 ns;
     CCSDS_RXTX_BENCH_START_SERDES_WAIT_DURATION: time := 1500 ns;
@@ -179,6 +188,21 @@ architecture behaviour of ccsds_rxtx_bench is
       dat_val_o: out std_logic
     );
   end component;
+  component ccsds_rxtx_lfsr is
+    generic(
+      CCSDS_RXTX_LFSR_DATA_BUS_SIZE: integer;
+      CCSDS_RXTX_LFSR_MEMORY_SIZE: integer;
+		  CCSDS_RXTX_LFSR_MODE: std_logic;
+		  CCSDS_RXTX_LFSR_POLYNOMIAL: std_logic_vector;
+		  CCSDS_RXTX_LFSR_SEED: std_logic_vector
+    );
+    port(
+      clk_i: in std_logic;
+      rst_i: in std_logic;
+      dat_o: out std_logic_vector(CCSDS_RXTX_LFSR_DATA_BUS_SIZE-1 downto 0);
+      dat_val_o: out std_logic
+    );
+  end component;
   component ccsds_rxtx_serdes is
     generic (
       constant CCSDS_RXTX_SERDES_DEPTH : integer
@@ -248,6 +272,9 @@ architecture behaviour of ccsds_rxtx_bench is
   signal bench_sti_framer0_rst: std_logic;
   signal bench_sti_framer0_data_valid: std_logic;
   signal bench_sti_framer0_data: std_logic_vector(CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE-1 downto 0);
+  -- lfsr
+  signal bench_sti_lfsr0_clk: std_logic;
+  signal bench_sti_lfsr0_rst: std_logic;
   -- serdes
   signal bench_sti_serdes0_clk: std_logic;
   signal bench_sti_serdes0_rst: std_logic;
@@ -290,6 +317,9 @@ architecture behaviour of ccsds_rxtx_bench is
   -- framer
   signal bench_res_framer0_data_valid: std_logic;
   signal bench_res_framer0_data: std_logic_vector((CCSDS_RXTX_BENCH_FRAMER0_HEADER_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH)*8-1 downto 0);
+  -- lfsr
+  signal bench_res_lfsr0_data_valid: std_logic;
+  signal bench_res_lfsr0_data: std_logic_vector(CCSDS_RXTX_BENCH_LFSR0_RESULT'length-1 downto 0);
   -- serdes
   signal bench_res_serdes0_busy: std_logic;
   signal bench_res_serdes0_data_par: std_logic_vector(CCSDS_RXTX_BENCH_SERDES0_DEPTH-1 downto 0);
@@ -432,6 +462,20 @@ architecture behaviour of ccsds_rxtx_bench is
         dat_val_o => bench_res_framer0_data_valid,
         dat_o => bench_res_framer0_data
       );
+    lfsr_001: ccsds_rxtx_lfsr
+      generic map(
+        CCSDS_RXTX_LFSR_DATA_BUS_SIZE => CCSDS_RXTX_BENCH_LFSR0_RESULT'length,
+        CCSDS_RXTX_LFSR_MEMORY_SIZE => CCSDS_RXTX_BENCH_LFSR0_MEMORY_SIZE,
+		    CCSDS_RXTX_LFSR_MODE => CCSDS_RXTX_BENCH_LFSR0_MODE,
+		    CCSDS_RXTX_LFSR_POLYNOMIAL => CCSDS_RXTX_BENCH_LFSR0_POLYNOMIAL,
+		    CCSDS_RXTX_LFSR_SEED => CCSDS_RXTX_BENCH_LFSR0_SEED
+      )
+      port map(
+        clk_i => bench_sti_lfsr0_clk,
+        rst_i => bench_sti_lfsr0_rst,
+        dat_val_o => bench_res_lfsr0_data_valid,
+        dat_o => bench_res_lfsr0_data
+      );
     serdes_001: ccsds_rxtx_serdes
       generic map(
         CCSDS_RXTX_SERDES_DEPTH => CCSDS_RXTX_BENCH_SERDES0_DEPTH
@@ -533,6 +577,20 @@ architecture behaviour of ccsds_rxtx_bench is
         wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD/2;
         bench_sti_framer0_clk <= '0';
         wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD/2;
+      end process;
+    --=============================================================================
+    -- Begin of bench_sti_lfsr0_clkp
+    -- bench_sti_lfsr0_clk generation
+    --=============================================================================
+    -- read: 
+    -- write: bench_sti_lfsr0_clk
+    -- r/w: 
+    BENCH_STI_LFSR0_CLKP : process
+      begin
+        bench_sti_lfsr0_clk <= '1';
+        wait for CCSDS_RXTX_BENCH_LFSR0_CLK_PERIOD/2;
+        bench_sti_lfsr0_clk <= '0';
+        wait for CCSDS_RXTX_BENCH_LFSR0_CLK_PERIOD/2;
       end process;
     --=============================================================================
     -- Begin of bench_sti_serdes0_clkp
@@ -1157,6 +1215,39 @@ architecture behaviour of ccsds_rxtx_bench is
         wait;
       end process;
     --=============================================================================
+    -- Begin of lfsrp
+    -- generation of lfsr subsystem read-write unit-tests
+    --=============================================================================
+    -- read: 
+    -- write: 
+    -- r/w: 
+    LFSRP : process
+      begin
+      -- let the system free run
+        wait for (CCSDS_RXTX_BENCH_START_FREE_RUN_DURATION/2);
+      -- default state tests:
+      -- let the system reset
+        wait for (CCSDS_RXTX_BENCH_START_FREE_RUN_DURATION/2 + CCSDS_RXTX_BENCH_START_RESET_SIG_DURATION + CCSDS_RXTX_BENCH_START_LFSR_WAIT_DURATION);
+      -- initial state tests:
+      -- behaviour tests:
+        report "LFSRP: START LFSR TESTS" severity note;
+        wait for (CCSDS_RXTX_BENCH_LFSR0_RESULT'length)*CCSDS_RXTX_BENCH_LFSR0_CLK_PERIOD;
+        if (bench_res_lfsr0_data_valid = '1') then
+          report "LFSRP: OK - LFSR output is valid" severity note;
+          if (bench_res_lfsr0_data = CCSDS_RXTX_BENCH_LFSR0_RESULT) then
+            report "LFSRP: OK - LFSR output is equal to expected output" severity note;
+          else
+            report "LFSRP: KO - LFSR output is different from expected output" severity warning;
+          end if;
+        else
+          report "LFSRP: KO - LFSR output is not valid" severity warning;
+        end if;
+      -- final state tests:
+        report "LFSRP: END LFSR TESTS" severity note;
+      -- do nothing
+        wait;
+      end process;
+    --=============================================================================
     -- Begin of serdesp
     -- generation of serdes subsystem unit-tests
     --=============================================================================
@@ -1377,6 +1468,7 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_crc0_rst <= '1';
         bench_sti_buffer0_rst <= '1';
         bench_sti_framer0_rst <= '1';
+        bench_sti_lfsr0_rst <= '1';
         -- wait for some time
         wait for CCSDS_RXTX_BENCH_START_RESET_SIG_DURATION;
         report "RESETP: END RESET SIGNAL TEST" severity note;
@@ -1385,6 +1477,7 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_crc0_rst <= '0';
         bench_sti_buffer0_rst <= '0';
         bench_sti_framer0_rst <= '0';
+        bench_sti_lfsr0_rst <= '0';
         -- do nothing
         wait;
       end process;

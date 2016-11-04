@@ -186,7 +186,7 @@ entity ccsds_rxtx_crc is
     constant CCSDS_RXTX_CRC_INPUT_REFLECTED: boolean := false; -- Reflect input on overall data (not currently used by standards) / WARNING - take over input bytes reflected parameter if activated
     constant CCSDS_RXTX_CRC_LENGTH: integer := 2; -- CRC value depth - in Bytes
     constant CCSDS_RXTX_CRC_OUTPUT_REFLECTED: boolean := false; -- Reflect output
-    constant CCSDS_RXTX_CRC_POLYNOMIAL: std_logic_vector	:= x"1021"; -- Truncated polynomial / LSB <=> lower polynome (needs to be '1')
+    constant CCSDS_RXTX_CRC_POLYNOMIAL: std_logic_vector	:= x"1021"; -- Truncated polynomial / MSB <=> lower polynome (needs to be '1')
     constant CCSDS_RXTX_CRC_POLYNOMIAL_REFLECTED: boolean := false; -- Reflect polynomial
     constant CCSDS_RXTX_CRC_SEED: std_logic_vector := x"FFFF" -- Initial value from register
   );
@@ -232,14 +232,14 @@ architecture rtl of ccsds_rxtx_crc is
     CHKCRCP1 : if CCSDS_RXTX_CRC_POLYNOMIAL'length /= CCSDS_RXTX_CRC_LENGTH*8 generate
       process
       begin
-        report "ERROR: CRC POLYNOMIAL LENGTH MUST BE EQUAL TO CRC LENGTH (SHORTENED VERSION / DON'T PUT MANDATORY MSB '1')" severity failure;
+        report "ERROR: CRC POLYNOMIAL LENGTH MUST BE EQUAL TO CRC LENGTH (SHORTENED VERSION / DON'T PUT MANDATORY HIGHER POLYNOME '1')" severity failure;
         wait;
       end process;
     end generate CHKCRCP1;
     CHKCRCP2 : if CCSDS_RXTX_CRC_POLYNOMIAL(CCSDS_RXTX_CRC_LENGTH*8-1) = '0' generate
       process
       begin
-        report "ERROR: CRC POLYNOMIAL LSB MUST BE EQUAL TO '1': " & std_logic'image(CCSDS_RXTX_CRC_POLYNOMIAL(CCSDS_RXTX_CRC_LENGTH*8-1)) severity failure;
+        report "ERROR: CRC POLYNOMIAL MSB MUST BE EQUAL TO '1': " & std_logic'image(CCSDS_RXTX_CRC_POLYNOMIAL(CCSDS_RXTX_CRC_LENGTH*8-1)) severity failure;
         wait;
       end process;
     end generate CHKCRCP2;
