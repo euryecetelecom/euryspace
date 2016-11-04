@@ -1,10 +1,10 @@
 CAPI=1
 [main]
 description = EurySPACE CCSDS RX/TX with wishbone interface
+simulators = ghdl
 
-[vhdl]
-src_files =
- ccsds_rxtx_bench.vhd
+[fileset rtl_files]
+files =
  ccsds_rxtx_buffer.vhd
  ccsds_rxtx_constants.vhd
  ccsds_rxtx_crc.vhd
@@ -22,3 +22,14 @@ src_files =
  ccsds_tx_framer.vhd
  ccsds_tx_header.vhd
  ccsds_tx_footer.vhd
+file_type = vhdlSource
+usage = sim synth
+
+[fileset tb]
+files =  ccsds_rxtx_bench.vhd
+file_type = vhdlSource
+scope = private
+usage = sim
+
+[simulator]
+toplevel = ccsds_rxtx_bench

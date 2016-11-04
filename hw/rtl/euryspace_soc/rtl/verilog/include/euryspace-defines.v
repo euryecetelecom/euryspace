@@ -39,7 +39,5 @@
 `define I2C0
 `define SPI0
 `define GPIO0
-//`define RAM_WB
-//`define INTGEN
 `define CCSDS_RXTX0
 // end of included module defines - keep this comment line here

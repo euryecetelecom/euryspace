@@ -72,7 +72,7 @@ entity ccsds_rxtx_bench is
     CCSDS_RXTX_BENCH_CRC0_RANDOM_DATA_BUS_SIZE: integer:= 8; -- in Bytes
     CCSDS_RXTX_BENCH_CRC0_RANDOM_CHECK_NUMBER: integer:= 25;
     CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD: time := 10 ns;
-    CCSDS_RXTX_BENCH_FRAMER0_FRAME_NUMBER: integer := 50;
+    CCSDS_RXTX_BENCH_FRAMER0_FRAME_NUMBER: integer := 25;
     CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD: time := 20 ns;
     CCSDS_RXTX_BENCH_RXTX0_WB_TX_WRITE_CYCLE_NUMBER: integer := 1000;
     CCSDS_RXTX_BENCH_RXTX0_RX_CLK_PERIOD: time := 10 ns;
@@ -173,7 +173,6 @@ architecture behaviour of ccsds_rxtx_bench is
     port(
       clk_i: in std_logic;
       rst_i: in std_logic;
-      nxt_dat_o: out std_logic;
       dat_i: in std_logic_vector(CCSDS_TX_FRAMER_DATA_BUS_SIZE-1 downto 0);
       dat_val_i: in std_logic;
       dat_o: out std_logic_vector((CCSDS_TX_FRAMER_HEADER_LENGTH+CCSDS_TX_FRAMER_FOOTER_LENGTH+CCSDS_TX_FRAMER_DATA_LENGTH)*8-1 downto 0);
@@ -692,7 +691,7 @@ architecture behaviour of ccsds_rxtx_bench is
     -- generation of buffer subsystem read-write unit-tests
     --=============================================================================
     -- read: bench_res_buffer0_buffer_empty, bench_res_buffer0_buffer_full, bench_res_buffer0_data, bench_res_buffer0_data_valid
-    -- write: bench_sti_buffer0_data_valid, bench_sti_buffer0_next_data
+    -- write: bench_sti_buffer0_data_valid, bench_sti_buffer0_next_data, bench_ena_buffer0_random_data
     -- r/w: 
     BUFFERRWP : process
       type buffer_array is array (CCSDS_RXTX_BENCH_BUFFER0_SIZE downto 0) of std_logic_vector(CCSDS_RXTX_BENCH_BUFFER0_DATA_BUS_SIZE-1 downto 0);
@@ -836,7 +835,6 @@ architecture behaviour of ccsds_rxtx_bench is
           end if;
         end loop;
         bench_sti_buffer0_next_data <= '0';
-        report "BUFFERRWP: END BUFFER READ-WRITE TESTS" severity note;
       -- final state tests:
         -- check buffer is empty
         if (bench_res_buffer0_buffer_empty = '1') then
@@ -850,6 +848,7 @@ architecture behaviour of ccsds_rxtx_bench is
         else
           report "BUFFERRWP: KO - Final state - Buffer is full" severity warning;
         end if;
+        report "BUFFERRWP: END BUFFER READ-WRITE TESTS" severity note;
       -- do nothing
         wait;
       end process;
@@ -858,7 +857,7 @@ architecture behaviour of ccsds_rxtx_bench is
     -- generation of crc subsystem unit-tests
     --=============================================================================
     -- read: bench_res_crc0_data, bench_res_crc0_data_valid
-    -- write: bench_sti_crc0_nxt, bench_sti_crc0_data
+    -- write: bench_sti_crc0_nxt, bench_sti_crc0_data, bench_ena_crc0_random_data
     -- r/w: 
     CRCP : process
       variable crc_random_data_sent: std_logic_vector(CCSDS_RXTX_BENCH_CRC0_RANDOM_DATA_BUS_SIZE*8-1 downto 0) := (others => '0');
@@ -979,7 +978,6 @@ architecture behaviour of ccsds_rxtx_bench is
           wait for CCSDS_RXTX_BENCH_CRC0_CLK_PERIOD;
         end loop;
         bench_ena_crc0_random_data <= '0';
-        report "CRCP: END CRC COMPUTATION TESTS" severity note;
         wait for CCSDS_RXTX_BENCH_CRC0_CLK_PERIOD;
       -- final state tests:
         if (bench_res_crc0_data_valid = '1') then
@@ -987,6 +985,7 @@ architecture behaviour of ccsds_rxtx_bench is
         else
           report "CRCP: OK - Final state - CRC output data is not valid" severity note;
         end if;
+        report "CRCP: END CRC COMPUTATION TESTS" severity note;
         -- do nothing
         wait;
       end process;
@@ -995,55 +994,68 @@ architecture behaviour of ccsds_rxtx_bench is
     -- generation of framer subsystem unit-tests
     --=============================================================================
     -- read: bench_res_framer0_data0, bench_res_framer0_data_valid0
-    -- write: 
+    -- write: bench_ena_framer0_random_data
     -- r/w: 
     FRAMERP : process
       type data_array is array (CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH*8/CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE-1 downto 0) of std_logic_vector(CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE-1 downto 0);
       type frame_array is array (CCSDS_RXTX_BENCH_FRAMER0_FRAME_NUMBER-1 downto 0) of data_array;
       variable framer_expected_data: frame_array := (others => (others => (others => '0')));
       variable frame_content_ok: std_logic := '1';
-      constant FRAME_PROCESSING_CYCLES_REQUIRED: integer := (CCSDS_RXTX_BENCH_FRAMER0_HEADER_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH)*8+3;
-      constant FRAME_ACQUISITION_CYCLES_REQUIRED: integer := CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH*8/CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE;
+      variable nb_data: integer;
+      variable FRAME_OUTPUT_CYCLES_REQUIRED: integer;
+      variable FRAME_PROCESSING_CYCLES_REQUIRED: integer := (CCSDS_RXTX_BENCH_FRAMER0_HEADER_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH)*8+1;
+      constant FRAME_ACQUISITION_CYCLES: integer := (CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH*8-CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE)*CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO/CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE + 1;
+      constant FRAME_REPETITION_CYCLES: integer := CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH*8*CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO/CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE;
+      constant FRAME_ACQUISITION_CYCLES_IDLE: integer := FRAME_REPETITION_CYCLES - FRAME_ACQUISITION_CYCLES;
       begin
+        if (CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH*8 = CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE) and (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO = 1) then
+          FRAME_OUTPUT_CYCLES_REQUIRED := (CCSDS_RXTX_BENCH_FRAMER0_HEADER_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH)*8+6;
+        else
+          FRAME_OUTPUT_CYCLES_REQUIRED := (CCSDS_RXTX_BENCH_FRAMER0_HEADER_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH)*8+5;
+        end if;
       -- let the system free run
         wait for (CCSDS_RXTX_BENCH_START_FREE_RUN_DURATION/2);
       -- default state tests:
-        -- check output data is not valid
-        if bench_res_framer0_data_valid = '0' then
-          report "FRAMERP: OK - Default state - Output frame is not valid without sent data" severity note;
-        else
-          report "FRAMERP: KO - Default state - Output frame is valid without sent data" severity warning;
-        end if;
       -- let the system reset
         wait for (CCSDS_RXTX_BENCH_START_FREE_RUN_DURATION/2 + CCSDS_RXTX_BENCH_START_RESET_SIG_DURATION + CCSDS_RXTX_BENCH_START_FRAMER_WAIT_DURATION);
         report "FRAMERP: START FRAMER TESTS" severity note;
       -- initial state tests:
-        -- check output data is not valid
-        if bench_res_framer0_data_valid = '0' then
-          report "FRAMERP: OK - Initial state - Output frame is not valid without sent data" severity note;
+        bench_ena_framer0_random_data <= '1';
+        -- check output data is valid and idle only data found
+        if ((CCSDS_RXTX_BENCH_START_FRAMER_WAIT_DURATION/CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD) < FRAME_OUTPUT_CYCLES_REQUIRED) then
+          wait for (FRAME_OUTPUT_CYCLES_REQUIRED+1 - ((CCSDS_RXTX_BENCH_START_FRAMER_WAIT_DURATION/CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD) mod FRAME_OUTPUT_CYCLES_REQUIRED))*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
         else
-          report "FRAMERP: KO - Initial state - Output frame is valid without sent data" severity warning;
+          wait for (FRAME_REPETITION_CYCLES+1 - (((CCSDS_RXTX_BENCH_START_FRAMER_WAIT_DURATION/CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD) - FRAME_OUTPUT_CYCLES_REQUIRED) mod (FRAME_REPETITION_CYCLES)))*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
+        end if;
+        if bench_res_framer0_data_valid = '1' then
+          if (bench_res_framer0_data((CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH)*8+10 downto (CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH)*8) = "11111111110") then
+            report "FRAMERP: OK - Default state - Output frame is valid and Only Idle Data flag found" severity note;
+          else
+            report "FRAMERP: KO - Default state - Output frame is valid without sent data - Only Idle Flag not found" severity warning;
+          end if;
+        else
+          report "FRAMERP: KO - Default state - Output frame is not valid without sent data" severity warning;
         end if;
       -- behaviour tests:
-        bench_ena_framer0_random_data <= '1';
-        wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
-        -- send data for 1 frame only / full speed
+        -- align the end of data to the beginning of a new frame processing cycle
+        wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD*(FRAME_REPETITION_CYCLES - (FRAME_OUTPUT_CYCLES_REQUIRED mod FRAME_REPETITION_CYCLES) + FRAME_ACQUISITION_CYCLES_IDLE);
+        -- send data for 1 frame
         for i in 0 to (CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH*8/CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE)-1 loop
           bench_sti_framer0_data_valid <= '1';
           wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD/2;
           framer_expected_data(0)(i) := bench_sti_framer0_data;
           wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD/2;
+          if (i /= (CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH*8/CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE)-1) then
+            if (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO /= 1) then
+              bench_sti_framer0_data_valid <= '0';
+              wait for (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO-1)*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
+            end if;
+          end if;
         end loop;
         bench_sti_framer0_data_valid <= '0';
         bench_ena_framer0_random_data <= '0';
-        -- check output data is not valid
-        if bench_res_framer0_data_valid = '0' then
-          report "FRAMERP: OK - Output frame is not valid too early" severity note;
-        else
-          report "FRAMERP: KO - Output frame is valid too early" severity warning;
-        end if;
         -- wait for footer to be processed
-        wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD*FRAME_PROCESSING_CYCLES_REQUIRED;
+        wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD*(FRAME_PROCESSING_CYCLES_REQUIRED+4);
         if bench_res_framer0_data_valid = '0' then
           report "FRAMERP: KO - Output frame is not ready in time" severity warning;
         else
@@ -1060,17 +1072,10 @@ architecture behaviour of ccsds_rxtx_bench is
             end if;
           end loop;
         end if;
-        wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
-        -- check output data is not valid
-        if (bench_res_framer0_data_valid = '0') then
-          report "FRAMERP: OK - Output frame is not valid too long" severity note;
-        else
-          report "FRAMERP: KO - Output frame is valid too long" severity warning;
-        end if;
-        wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD*10;
-      -- send data every CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO clk during CCSDS_RXTX_BENCH_FRAMER0_FRAME_NUMBER*frame_duration*3 and check 1 frame over 3
+      -- send data every CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO clk during CCSDS_RXTX_BENCH_FRAMER0_FRAME_NUMBER*frame_processing time, store sent data for first frame and check output frame content
         bench_ena_framer0_random_data <= '1';
-        wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
+        -- align the end of data to the beginning of a new frame processing cycle
+        wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD*(FRAME_REPETITION_CYCLES - (FRAME_OUTPUT_CYCLES_REQUIRED mod FRAME_REPETITION_CYCLES) + FRAME_ACQUISITION_CYCLES_IDLE);
         frame_content_ok := '1';
         for f in 0 to (CCSDS_RXTX_BENCH_FRAMER0_FRAME_NUMBER-1) loop
           for i in 0 to (CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH*8/CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE)-1 loop
@@ -1080,39 +1085,24 @@ architecture behaviour of ccsds_rxtx_bench is
             wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD/2;
             if (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO /= 1) then
               bench_sti_framer0_data_valid <= '0';
-              if (i /= (CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH*8/CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE)-1) then
+              wait for (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO-1)*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
+            end if;
+          end loop;
+          -- waiting for footer to be processed
+          for data_packet in 0 to ((FRAME_PROCESSING_CYCLES_REQUIRED-1)/CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO)-1 loop
+            bench_sti_framer0_data_valid <= '1';
+            wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
+            if (data_packet /= ((FRAME_PROCESSING_CYCLES_REQUIRED-1)/CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO-1))  then
+              if (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO /= 1) then
+                bench_sti_framer0_data_valid <= '0';
                 wait for (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO-1)*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
               end if;
             end if;
           end loop;
---          report "FRAMERP: DEBUG - Output frame generated" severity note;
-          -- check output data is not valid on first frame
-          if (f = 0) then
-            if bench_res_framer0_data_valid = '1' then
-              report "FRAMERP: KO - Output frame is valid without sent data" severity warning;
-            end if;
-          end if;
           if (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO /= 1) then
-            wait for (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO-1)*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
-            for data_packet in 1 to (FRAME_PROCESSING_CYCLES_REQUIRED/CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO)-1 loop
-              bench_sti_framer0_data_valid <= '1';
-              wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
-              bench_sti_framer0_data_valid <= '0';
-              if (data_packet /= (FRAME_PROCESSING_CYCLES_REQUIRED/CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO)-1) then
-                wait for (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO-1)*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
-              end if;
-            end loop;
---            report "FRAMERP: DEBUG - Loop finished" severity note;
-            wait for (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO-1)*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
-            bench_sti_framer0_data_valid <= '1';
-            wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
             bench_sti_framer0_data_valid <= '0';
-            wait for ((FRAME_PROCESSING_CYCLES_REQUIRED mod CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO))*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
---            report "FRAMERP: DEBUG - Wait finished" severity note;
-          else
-            -- continuous data / wait for footer to be processed
-            wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD*FRAME_PROCESSING_CYCLES_REQUIRED;
           end if;
+          wait for 5*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
           if bench_res_framer0_data_valid = '0' then
             report "FRAMERP: KO - Output frame is not ready in time - frame loop: " & integer'image(f) severity warning;
           else
@@ -1128,33 +1118,41 @@ architecture behaviour of ccsds_rxtx_bench is
               end if;
             end loop;
           end if;
-          -- wait for current frame to be full in order to start with a new frame
-          if (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO /= 1) then
---            report "FRAMERP: DEBUG - Waiting for current frame to be full" severity note;
-            wait for (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO - (FRAME_PROCESSING_CYCLES_REQUIRED mod CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO))*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
-            for data_packet in 1 to ((FRAME_ACQUISITION_CYCLES_REQUIRED - ((FRAME_PROCESSING_CYCLES_REQUIRED/CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO) mod FRAME_ACQUISITION_CYCLES_REQUIRED))) loop
-              bench_sti_framer0_data_valid <= '1';
-              wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
-              bench_sti_framer0_data_valid <= '0';
-              wait for (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO-1)*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
-            end loop;
---            report "FRAMERP: DEBUG - Waiting end" severity note;
-          else
-            wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD*(FRAME_ACQUISITION_CYCLES_REQUIRED - (FRAME_PROCESSING_CYCLES_REQUIRED mod FRAME_ACQUISITION_CYCLES_REQUIRED));
+          if (f /= (CCSDS_RXTX_BENCH_FRAMER0_FRAME_NUMBER-1)) then
+            -- fill current frame to start with new one
+            if ((((CCSDS_RXTX_BENCH_FRAMER0_HEADER_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH)*8) mod FRAME_REPETITION_CYCLES) /= 0) then
+              nb_data := (FRAME_REPETITION_CYCLES - (((CCSDS_RXTX_BENCH_FRAMER0_HEADER_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH)*8) mod FRAME_REPETITION_CYCLES))/CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO;
+              for i in 0 to nb_data-1 loop
+                bench_sti_framer0_data_valid <= '1';
+                wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
+                if (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO /= 1) then
+                  bench_sti_framer0_data_valid <= '0';
+                  wait for (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO-1)*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
+                end if;
+              end loop;
+              -- align the end of data to the beginning of a new frame processing cycle
+              wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD*(2*FRAME_REPETITION_CYCLES - (FRAME_OUTPUT_CYCLES_REQUIRED mod FRAME_REPETITION_CYCLES) + FRAME_ACQUISITION_CYCLES_IDLE - nb_data*CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO);
+            else
+              -- align the end of data to the beginning of a new frame processing cycle
+              wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD*(FRAME_REPETITION_CYCLES - (FRAME_OUTPUT_CYCLES_REQUIRED mod FRAME_REPETITION_CYCLES) + FRAME_ACQUISITION_CYCLES_IDLE);            
+            end if;
           end if;
         end loop;
         bench_sti_framer0_data_valid <= '0';
         bench_ena_framer0_random_data <= '0';
-        report "FRAMERP: END FRAMER TESTS" severity note;
         -- wait for last frame to be processed and presented
-        wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD*(FRAME_PROCESSING_CYCLES_REQUIRED+1);
+        wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD*(FRAME_REPETITION_CYCLES*(((FRAME_PROCESSING_CYCLES_REQUIRED+1)/FRAME_REPETITION_CYCLES)+4));
       -- final state tests:
-        -- check output data is not valid
-        if bench_res_framer0_data_valid = '0' then
-          report "FRAMERP: OK - Final state - Output frame is not valid" severity note;
+        if bench_res_framer0_data_valid = '1' then
+          if (bench_res_framer0_data((CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH)*8+10 downto (CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH)*8) = "11111111110") then
+            report "FRAMERP: OK - Final state - Output frame is valid and Only Idle Data flag found" severity note;
+          else
+            report "FRAMERP: KO - Final state - Output frame is valid without sent data - Only Idle Flag not found" severity warning;
+          end if;
         else
-          report "FRAMERP: KO - Final state - Output frame is valid" severity warning;
+          report "FRAMERP: KO - Final state - Output frame is not valid without sent data" severity warning;
         end if;
+        report "FRAMERP: END FRAMER TESTS" severity note;
       -- do nothing
         wait;
       end process;
@@ -1163,7 +1161,7 @@ architecture behaviour of ccsds_rxtx_bench is
     -- generation of serdes subsystem unit-tests
     --=============================================================================
     -- read: bench_res_serdes0_data_par_valid, bench_res_serdes0_data_par, bench_res_serdes0_data_ser, bench_res_serdes0_data_ser_valid, bench_res_serdes0_busy
-    -- write: bench_sti_serdes0_data_par_valid, bench_sti_serdes0_data_ser_valid
+    -- write: bench_sti_serdes0_data_par_valid, bench_sti_serdes0_data_ser_valid, bench_ena_serdes0_random_data
     -- r/w: 
     SERDESP : process
       variable serdes_expected_output: std_logic_vector(CCSDS_RXTX_BENCH_SERDES0_DEPTH-1 downto 0) := (others => '0');
@@ -1341,7 +1339,6 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_serdes0_data_ser_valid <= '0';
         bench_ena_serdes0_random_data <= '0';
         wait for CCSDS_RXTX_BENCH_SERDES0_CLK_PERIOD;
-        report "SERDESP: END SERDES TESTS" severity note;
       -- final state tests:
         -- check serdes is not valid
         if (bench_res_serdes0_data_par_valid = '0') then
@@ -1359,6 +1356,7 @@ architecture behaviour of ccsds_rxtx_bench is
         else
           report "SERDESP: KO - Final state - Serdes is busy" severity warning;
         end if;
+        report "SERDESP: END SERDES TESTS" severity note;
       -- do nothing
         wait;
       end process;
@@ -1395,7 +1393,7 @@ architecture behaviour of ccsds_rxtx_bench is
     -- generation of master wb read / write cycles / aligned with clk0
     --=============================================================================
     -- read: bench_res_rxtx0_wb_ack0, bench_res_rxtx0_wb_err0, bench_res_rxtx0_wb_rty0, bench_sti_rxtx0_wb_random_dat0
-    -- write: bench_sti_rxtx0_wb_adr0, bench_sti_rxtx0_wb_cyc0, bench_sti_rxtx0_wb_stb0, bench_sti_rxtx0_wb_we0, bench_sti_rxtx0_wb_dat0
+    -- write: bench_sti_rxtx0_wb_adr0, bench_sti_rxtx0_wb_cyc0, bench_sti_rxtx0_wb_stb0, bench_sti_rxtx0_wb_we0, bench_sti_rxtx0_wb_dat0, bench_ena_rxtx0_random_data
     -- r/w: 
     WBRWP : process
       begin
@@ -1608,7 +1606,6 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_rxtx0_wb_we <= '0';
         bench_sti_rxtx0_wb_dat <= (others => '0');
         bench_sti_rxtx0_wb_adr <= "0000";
-        report "WBRWP: END WISHBONE BUS READ-WRITE TESTS" severity note;
         wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;
       -- final state tests:
         if (bench_res_rxtx0_wb_ack = '0') then
@@ -1626,6 +1623,7 @@ architecture behaviour of ccsds_rxtx_bench is
         else
           report "WBRWP: OK - Final state - RTY enabled" severity warning;
         end if;
+        report "WBRWP: END WISHBONE BUS READ-WRITE TESTS" severity note;
 --        bench_ena_rxtx0_random_data <= '0';
         wait;
       end process;

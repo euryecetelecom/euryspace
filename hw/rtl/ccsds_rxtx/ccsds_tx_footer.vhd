@@ -15,9 +15,8 @@
 ---- 2016/02/28: initial release
 ---- 2016/10/21: rework
 -------------------------------
---TODO: operationnal control field not done
---TODO: security trailer not done
-
+--TODO: operationnal control field
+--TODO: security trailer
 --[OPT] SECURITY TRAILER
 --[OPT] TRANSFER FRAME TRAILER (2 to 6 octets)
 --       \ [OPT] OPERATIONAL CONTROL FIELD => 4 octets
