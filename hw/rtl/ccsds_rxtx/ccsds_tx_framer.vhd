@@ -36,7 +36,7 @@ entity ccsds_tx_framer is
     constant CCSDS_TX_FRAMER_DATA_LENGTH: integer; -- in Bytes
     constant CCSDS_TX_FRAMER_FOOTER_LENGTH: integer; -- in Bytes
     constant CCSDS_TX_FRAMER_HEADER_LENGTH: integer; -- in Bytes
-    constant CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO: integer := 2 -- activated max framer parallelism speed ratio / 1 = full speed / 2 = wishbone bus / 32 = external serial data (has to be a multiple of TBD)
+    constant CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO: integer := 8 -- activated max framer parallelism speed ratio / 1 = full speed / 2 = wishbone bus max speed / ... / 32 = external serial data
   );
   port(
     -- inputs
@@ -151,6 +151,13 @@ architecture structure of ccsds_tx_framer is
         wait;
       end process;
     end generate CHKFRAMERP1;
+    CHKFRAMERP2 : if ((CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO) = 0) generate
+      process
+      begin
+        report "ERROR: PARALLELISM MAX RATIO CANNOT BE 0" severity failure;
+        wait;
+      end process;
+    end generate CHKFRAMERP2;
     
 -- internal processing
 

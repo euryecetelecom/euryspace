@@ -50,7 +50,7 @@ end ccsds_tx_footer;
 --=============================================================================
 -- architecture declaration / internal components and connections
 --=============================================================================
-architecture rtl of ccsds_tx_footer is
+architecture structure of ccsds_tx_footer is
   component ccsds_rxtx_crc is
     generic(
       constant CCSDS_RXTX_CRC_LENGTH: integer;
@@ -90,5 +90,4 @@ architecture rtl of ccsds_tx_footer is
       dat_val_o => dat_val_o
     );
 -- internal processing
-
-end rtl;
+end structure;

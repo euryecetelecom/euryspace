@@ -204,6 +204,17 @@ entity ccsds_rxtx_crc is
     dat_o: out std_logic_vector(CCSDS_RXTX_CRC_DATA_LENGTH*8-1 downto 0);
     dat_val_o: out std_logic
   );
+  -- implement input/output registers
+  attribute useioff: boolean;
+  attribute useioff of dat_i: signal is true;
+  attribute useioff of pad_dat_i: signal is true;
+  attribute useioff of dat_o: signal is true;
+  attribute useioff of crc_o: signal is true;
+  attribute syn_useioff: boolean;
+  attribute syn_useioff of dat_i: signal is true;
+  attribute syn_useioff of pad_dat_i: signal is true;
+  attribute syn_useioff of dat_o: signal is true;
+  attribute syn_useioff of crc_o: signal is true;
 end ccsds_rxtx_crc;
 
 --=============================================================================

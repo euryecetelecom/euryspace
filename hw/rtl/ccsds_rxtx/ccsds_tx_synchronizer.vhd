@@ -58,7 +58,36 @@ architecture structure of ccsds_tx_synchronizer is
       end process;
     end generate CHKSYNCHRONIZERP0;
 -- internal processing
-    dat_o(CCSDS_TX_ASM_DATA_BUS_SIZE+CCSDS_TX_ASM_LENGTH*8-1 downto CCSDS_TX_ASM_DATA_BUS_SIZE) <= CCSDS_TX_ASM_PATTERN;
-    dat_o(CCSDS_TX_ASM_DATA_BUS_SIZE-1 downto 0) <= dat_i;
-    dat_val_o <= dat_val_i;
+    --=============================================================================
+    -- Begin of asmp
+    -- Apped ASM sequence to frame
+    --=============================================================================
+    -- read: rst_i, dat_val_i, dat_i
+    -- write: dat_o, dat_val_o
+    -- r/w: 
+    ASMP: process (clk_i)
+    variable data_synchronized: std_logic := '0';
+    begin
+      -- on each clock rising edge
+      if rising_edge(clk_i) then
+        -- reset signal received
+        if (rst_i = '1') then
+          dat_o <= (others => '0');
+          data_synchronized := '0';
+          dat_val_o <= '0';
+        else
+          if (dat_val_i = '1') then
+            dat_o(CCSDS_TX_ASM_DATA_BUS_SIZE+CCSDS_TX_ASM_LENGTH*8-1 downto CCSDS_TX_ASM_DATA_BUS_SIZE) <= CCSDS_TX_ASM_PATTERN;
+            dat_o(CCSDS_TX_ASM_DATA_BUS_SIZE-1 downto 0) <= dat_i;
+            data_synchronized := '1';
+            dat_val_o <= '1';
+          else
+            dat_val_o <= '0';
+            if (data_synchronized = '0') then
+              dat_o <= (others => '0');
+            end if;
+          end if;
+        end if;
+      end if;
+    end process;
 end structure;

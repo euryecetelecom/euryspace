@@ -80,19 +80,25 @@ architecture structure of ccsds_tx_randomizer is
     -- write: dat_o, dat_val_o
     -- r/w: 
     RANDP: process (clk_i)
+    variable data_randomized: std_logic := '0';
     begin
       -- on each clock rising edge
       if rising_edge(clk_i) then
         -- reset signal received
         if (rst_i = '1') then
           dat_o <= (others => '0');
+          data_randomized := '0';
           dat_val_o <= '0';
         else
           if (dat_val_i = '1') and (wire_lfsr_valid = '1') then
             dat_val_o <= '1';
             dat_o <= dat_i xor randomizer_sequence;
+            data_randomized := '1';
           else
             dat_val_o <= '0';
+            if (data_randomized = '0') then
+              dat_o <= (others => '0');
+            end if;
           end if;
         end if;
       end if;

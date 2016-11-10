@@ -24,6 +24,8 @@
 ---- 2016/10/27: adding serdes sub-component test ressources
 ---- 2016/10/30: framer tests improvements
 ---- 2016/11/04: adding lfsr sub-component test ressources
+---- 2016/11/05: adding mapper sub-component test ressources
+---- 2016/11/08: adding srrc + filter sub-component test ressources
 -------------------------------
 --TODO: functions for sub-components interactions and checks (wb_read, wb_write, buffer_read, ...)
 
@@ -44,6 +46,7 @@ entity ccsds_rxtx_bench is
     CCSDS_RXTX_BENCH_RXTX0_TX_PHYS_SIG_QUANT_DEPTH: integer := TX_PHYS_SIG_QUANT_DEPTH;
     CCSDS_RXTX_BENCH_RXTX0_WB_ADDR_BUS_SIZE: integer := RXTX_SYSTEM_WB_ADDR_BUS_SIZE;
     CCSDS_RXTX_BENCH_RXTX0_WB_DATA_BUS_SIZE: integer := RXTX_SYSTEM_WB_DATA_BUS_SIZE;
+    CCSDS_RXTX_BENCH_RXTX0_WB_WRITE_CYCLES_MAX: integer := 4;
     -- sub-systems parameters
     -- BUFFER
     CCSDS_RXTX_BENCH_BUFFER0_DATA_BUS_SIZE : integer := 32;
@@ -59,43 +62,65 @@ entity ccsds_rxtx_bench is
     CCSDS_RXTX_BENCH_CRC0_RESULT: std_logic_vector := x"e5cc";
     CCSDS_RXTX_BENCH_CRC0_SEED: std_logic_vector := x"ffff";
     CCSDS_RXTX_BENCH_CRC0_XOR: std_logic_vector := x"0000";
+    -- FILTER
+    CCSDS_RXTX_BENCH_FILTER0_MAPPER_DATA_BUS_SIZE: integer := 32;
+    CCSDS_RXTX_BENCH_FILTER0_OFFSET_PSK: std_logic := '1';
+    CCSDS_RXTX_BENCH_FILTER0_OVERSAMPLING_RATIO: integer := 4;
+    CCSDS_RXTX_BENCH_FILTER0_ROLL_OFF: real := 0.5;
+    CCSDS_RXTX_BENCH_FILTER0_SIG_QUANT_DEPTH: integer := 16;
+    CCSDS_RXTX_BENCH_FILTER0_BITS_PER_SYMBOL: integer := 1;
+    CCSDS_RXTX_BENCH_FILTER0_MODULATION_TYPE: integer := 1;
     -- FRAMER
     CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE: integer := 32;
     CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH: integer := 24;
     CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH: integer := 2;
     CCSDS_RXTX_BENCH_FRAMER0_HEADER_LENGTH: integer := 6;
-    CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO: integer := 2;
+    CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO: integer := 8;
     -- LFSR
 		CCSDS_RXTX_BENCH_LFSR0_RESULT: std_logic_vector := "1111111101001000000011101100000010011010";
 		CCSDS_RXTX_BENCH_LFSR0_MEMORY_SIZE: integer := 8;
 		CCSDS_RXTX_BENCH_LFSR0_MODE: std_logic := '0';
 		CCSDS_RXTX_BENCH_LFSR0_POLYNOMIAL: std_logic_vector	:= x"A9";
 		CCSDS_RXTX_BENCH_LFSR0_SEED: std_logic_vector	:= x"FF";
+		-- MAPPER
+		CCSDS_RXTX_BENCH_MAPPER0_BITS_PER_SYMBOL: integer := 1;
+		CCSDS_RXTX_BENCH_MAPPER0_DATA_BUS_SIZE: integer := 32;
+    CCSDS_RXTX_BENCH_MAPPER0_MODULATION_TYPE: integer := 1;
     -- SERDES
     CCSDS_RXTX_BENCH_SERDES0_DEPTH: integer := 32;
+    -- SRRC
+    CCSDS_RXTX_BENCH_SRRC0_APODIZATION_WINDOW_TYPE: integer := 1;
+    CCSDS_RXTX_BENCH_SRRC0_OVERSAMPLING_RATIO: integer := 4;
+    CCSDS_RXTX_BENCH_SRRC0_ROLL_OFF: real := 0.5;
+    CCSDS_RXTX_BENCH_SRRC0_SIG_QUANT_DEPTH: integer := 16;
     -- simulation/test parameters
     CCSDS_RXTX_BENCH_BUFFER0_CLK_PERIOD: time := 10 ns;
     CCSDS_RXTX_BENCH_CRC0_CLK_PERIOD: time := 10 ns;
-    CCSDS_RXTX_BENCH_CRC0_RANDOM_DATA_BUS_SIZE: integer:= 8; -- in Bytes
+    CCSDS_RXTX_BENCH_CRC0_RANDOM_DATA_BUS_SIZE: integer:= 8;
     CCSDS_RXTX_BENCH_CRC0_RANDOM_CHECK_NUMBER: integer:= 25;
+    CCSDS_RXTX_BENCH_FILTER0_CLK_PERIOD: time := 10 ns;
+    CCSDS_RXTX_BENCH_FILTER0_SYMBOL_WORDS_NUMBER: integer := 1000;
     CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD: time := 10 ns;
     CCSDS_RXTX_BENCH_FRAMER0_FRAME_NUMBER: integer := 25;
     CCSDS_RXTX_BENCH_LFSR0_CLK_PERIOD: time := 10 ns;
+    CCSDS_RXTX_BENCH_MAPPER0_CLK_PERIOD: time := 10 ns;
     CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD: time := 20 ns;
-    CCSDS_RXTX_BENCH_RXTX0_WB_TX_WRITE_CYCLE_NUMBER: integer := 1000;
-    CCSDS_RXTX_BENCH_RXTX0_RX_CLK_PERIOD: time := 10 ns;
-    CCSDS_RXTX_BENCH_RXTX0_TX_CLK_PERIOD: time := 10 ns;
+    CCSDS_RXTX_BENCH_RXTX0_WB_TX_WRITE_CYCLE_NUMBER: integer := 5000;
     CCSDS_RXTX_BENCH_SEED: integer := 123456789;
     CCSDS_RXTX_BENCH_SERDES0_CLK_PERIOD: time := 10 ns;
     CCSDS_RXTX_BENCH_SERDES0_CYCLES_NUMBER: integer := 25;
-    CCSDS_RXTX_BENCH_START_BUFFER_WAIT_DURATION: time := 1500 ns;
-    CCSDS_RXTX_BENCH_START_CRC_WAIT_DURATION: time := 1500 ns;
-    CCSDS_RXTX_BENCH_START_FRAMER_WAIT_DURATION: time := 1500 ns;
-    CCSDS_RXTX_BENCH_START_LFSR_WAIT_DURATION: time := 1500 ns;
-    CCSDS_RXTX_BENCH_START_FREE_RUN_DURATION: time := 1000 ns;
-    CCSDS_RXTX_BENCH_START_RESET_SIG_DURATION: time := 500 ns;
-    CCSDS_RXTX_BENCH_START_SERDES_WAIT_DURATION: time := 1500 ns;
-    CCSDS_RXTX_BENCH_START_WB_WAIT_DURATION: time := 1500 ns
+    CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD: time := 10 ns;
+    CCSDS_RXTX_BENCH_START_BUFFER_WAIT_DURATION: time := 2000 ns;
+    CCSDS_RXTX_BENCH_START_CRC_WAIT_DURATION: time := 2000 ns;
+    CCSDS_RXTX_BENCH_START_FILTER_WAIT_DURATION: time := 2000 ns;
+    CCSDS_RXTX_BENCH_START_FRAMER_WAIT_DURATION: time := 2000 ns;
+    CCSDS_RXTX_BENCH_START_FREE_RUN_DURATION: time := 2000 ns;
+    CCSDS_RXTX_BENCH_START_LFSR_WAIT_DURATION: time := 2000 ns;
+    CCSDS_RXTX_BENCH_START_MAPPER_WAIT_DURATION: time := 2000 ns;
+    CCSDS_RXTX_BENCH_START_RESET_SIG_DURATION: time := 400 ns;
+    CCSDS_RXTX_BENCH_START_SERDES_WAIT_DURATION: time := 2000 ns;
+    CCSDS_RXTX_BENCH_START_SRRC_WAIT_DURATION: time := 2000 ns;
+    CCSDS_RXTX_BENCH_START_WB_WAIT_DURATION: time := 1600 ns
   );
 end ccsds_rxtx_bench;
 
@@ -171,6 +196,25 @@ architecture behaviour of ccsds_rxtx_bench is
     dat_val_o: out std_logic
   );
   end component;
+  component ccsds_tx_filter is
+    generic(
+      CCSDS_TX_FILTER_OFFSET_PSK: std_logic;
+      CCSDS_TX_FILTER_OVERSAMPLING_RATIO: integer;
+      CCSDS_TX_FILTER_SIG_QUANT_DEPTH: integer;
+      CCSDS_TX_FILTER_MODULATION_TYPE: integer;
+      CCSDS_TX_FILTER_BITS_PER_SYMBOL: integer
+    );
+    port(
+      clk_i: in std_logic;
+      rst_i: in std_logic;
+      sym_i_i: in std_logic_vector(CCSDS_TX_FILTER_BITS_PER_SYMBOL-1 downto 0);
+      sym_q_i: in std_logic_vector(CCSDS_TX_FILTER_BITS_PER_SYMBOL-1 downto 0);
+      sym_val_i: in std_logic;
+      sam_i_o: out std_logic_vector(CCSDS_TX_FILTER_SIG_QUANT_DEPTH-1 downto 0);
+      sam_q_o: out std_logic_vector(CCSDS_TX_FILTER_SIG_QUANT_DEPTH-1 downto 0);
+      sam_val_o: out std_logic
+    );
+  end component;
   component ccsds_tx_framer is
     generic (
       constant CCSDS_TX_FRAMER_HEADER_LENGTH: integer;
@@ -203,6 +247,22 @@ architecture behaviour of ccsds_rxtx_bench is
       dat_val_o: out std_logic
     );
   end component;
+  component ccsds_tx_mapper is
+    generic(
+      CCSDS_TX_MAPPER_DATA_BUS_SIZE: integer;
+      CCSDS_TX_MAPPER_MODULATION_TYPE: integer;
+      CCSDS_TX_MAPPER_BITS_PER_SYMBOL: integer
+    );
+    port(
+      clk_i: in std_logic;
+      dat_i: in std_logic_vector(CCSDS_TX_MAPPER_DATA_BUS_SIZE-1 downto 0);
+      dat_val_i: in std_logic;
+      rst_i: in std_logic;
+      sym_i_o: out std_logic_vector(CCSDS_TX_MAPPER_BITS_PER_SYMBOL-1 downto 0);
+      sym_q_o: out std_logic_vector(CCSDS_TX_MAPPER_BITS_PER_SYMBOL-1 downto 0);
+      sym_val_o: out std_logic
+    );
+  end component;
   component ccsds_rxtx_serdes is
     generic (
       constant CCSDS_RXTX_SERDES_DEPTH : integer
@@ -221,11 +281,35 @@ architecture behaviour of ccsds_rxtx_bench is
       dat_ser_val_o: out std_logic
     );
   end component;
+  component ccsds_rxtx_srrc is
+    generic(
+      CCSDS_RXTX_SRRC_APODIZATION_WINDOW_TYPE: integer;
+      CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO: integer;
+      CCSDS_RXTX_SRRC_ROLL_OFF: real;
+      CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH: integer
+    );
+    port(
+      clk_i: in std_logic;
+      rst_i: in std_logic;
+      sam_i: in std_logic_vector(CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH-1 downto 0);
+      sam_val_i: in std_logic;
+      sam_o: out std_logic_vector(CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH-1 downto 0);
+      sam_val_o: out std_logic
+    );
+  end component;
 
+-- internal constants
+  constant CCSDS_RXTX_BENCH_FILTER0_MAPPER_CLK_PERIOD: time := CCSDS_RXTX_BENCH_FILTER0_CLK_PERIOD*CCSDS_RXTX_BENCH_FILTER0_OVERSAMPLING_RATIO;
+  constant CCSDS_RXTX_BENCH_FILTER0_MAPPER_DATA_CLK_PERIOD: time := CCSDS_RXTX_BENCH_FILTER0_MAPPER_CLK_PERIOD * CCSDS_RXTX_BENCH_FILTER0_MAPPER_DATA_BUS_SIZE * CCSDS_RXTX_BENCH_FILTER0_MODULATION_TYPE / (CCSDS_RXTX_BENCH_FILTER0_BITS_PER_SYMBOL * 2);
+  constant CCSDS_RXTX_BENCH_MAPPER0_DATA_CLK_PERIOD: time := CCSDS_RXTX_BENCH_MAPPER0_CLK_PERIOD * CCSDS_RXTX_BENCH_MAPPER0_DATA_BUS_SIZE * CCSDS_RXTX_BENCH_MAPPER0_MODULATION_TYPE / (CCSDS_RXTX_BENCH_MAPPER0_BITS_PER_SYMBOL * 2);
+  constant CCSDS_RXTX_BENCH_RXTX0_TX_CLK_PERIOD: time := CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD/16;
+  constant CCSDS_RXTX_BENCH_RXTX0_RX_CLK_PERIOD: time := CCSDS_RXTX_BENCH_RXTX0_TX_CLK_PERIOD;
 -- internal variables
   signal bench_ena_buffer0_random_data: std_logic := '0';
   signal bench_ena_crc0_random_data: std_logic := '0';
+  signal bench_ena_filter0_random_data: std_logic := '0';
   signal bench_ena_framer0_random_data: std_logic := '0';
+  signal bench_ena_mapper0_random_data: std_logic := '0';
   signal bench_ena_rxtx0_random_data: std_logic := '0';
   signal bench_ena_serdes0_random_data: std_logic := '0';
 
@@ -267,6 +351,15 @@ architecture behaviour of ccsds_rxtx_bench is
   signal bench_sti_crc0_random_nxt: std_logic;
   signal bench_sti_crc0_random_data: std_logic_vector(CCSDS_RXTX_BENCH_CRC0_RANDOM_DATA_BUS_SIZE*8-1 downto 0);
   signal bench_sti_crc0_random_padding_data_valid: std_logic;
+  -- filter
+  signal bench_sti_filter0_clk: std_logic;
+  signal bench_sti_filter0_rst: std_logic;
+  signal bench_sti_filter0_sym_i: std_logic_vector(CCSDS_RXTX_BENCH_FILTER0_BITS_PER_SYMBOL-1 downto 0);
+  signal bench_sti_filter0_sym_q: std_logic_vector(CCSDS_RXTX_BENCH_FILTER0_BITS_PER_SYMBOL-1 downto 0);
+  signal bench_sti_filter0_sym_val: std_logic;
+  signal bench_sti_filter0_mapper_data: std_logic_vector(CCSDS_RXTX_BENCH_FILTER0_MAPPER_DATA_BUS_SIZE-1 downto 0);
+  signal bench_sti_filter0_mapper_clk: std_logic;
+  signal bench_sti_filter0_mapper_dat_val: std_logic;
   -- framer
   signal bench_sti_framer0_clk: std_logic;
   signal bench_sti_framer0_rst: std_logic;
@@ -275,6 +368,11 @@ architecture behaviour of ccsds_rxtx_bench is
   -- lfsr
   signal bench_sti_lfsr0_clk: std_logic;
   signal bench_sti_lfsr0_rst: std_logic;
+  -- mapper
+  signal bench_sti_mapper0_clk: std_logic;
+  signal bench_sti_mapper0_rst: std_logic;
+  signal bench_sti_mapper0_data: std_logic_vector(CCSDS_RXTX_BENCH_MAPPER0_DATA_BUS_SIZE-1 downto 0);
+  signal bench_sti_mapper0_dat_val: std_logic;
   -- serdes
   signal bench_sti_serdes0_clk: std_logic;
   signal bench_sti_serdes0_rst: std_logic;
@@ -282,6 +380,11 @@ architecture behaviour of ccsds_rxtx_bench is
   signal bench_sti_serdes0_data_par: std_logic_vector(CCSDS_RXTX_BENCH_SERDES0_DEPTH-1 downto 0);
   signal bench_sti_serdes0_data_ser_valid: std_logic;
   signal bench_sti_serdes0_data_ser: std_logic;
+  -- srrc
+  signal bench_sti_srrc0_clk: std_logic;
+  signal bench_sti_srrc0_rst: std_logic;
+  signal bench_sti_srrc0_sam: std_logic_vector(CCSDS_RXTX_BENCH_SRRC0_SIG_QUANT_DEPTH-1 downto 0);
+  signal bench_sti_srrc0_sam_val: std_logic;
 -- core generated response
   -- wishbone bus
   signal bench_res_rxtx0_wb_ack: std_logic;
@@ -314,25 +417,42 @@ architecture behaviour of ccsds_rxtx_bench is
   signal bench_res_crc0_random_crc: std_logic_vector(CCSDS_RXTX_BENCH_CRC0_LENGTH*8-1 downto 0);
   signal bench_res_crc0_random_data: std_logic_vector(CCSDS_RXTX_BENCH_CRC0_RANDOM_DATA_BUS_SIZE*8-1 downto 0);
   signal bench_res_crc0_random_data_valid: std_logic;
+  -- filter
+  signal bench_res_filter0_sam_i: std_logic_vector(CCSDS_RXTX_BENCH_FILTER0_SIG_QUANT_DEPTH-1 downto 0);
+  signal bench_res_filter0_sam_q: std_logic_vector(CCSDS_RXTX_BENCH_FILTER0_SIG_QUANT_DEPTH-1 downto 0);
+  signal bench_res_filter0_sam_val: std_logic;
+  signal bench_res_filter0_srrc_sam_i: std_logic_vector(CCSDS_RXTX_BENCH_FILTER0_SIG_QUANT_DEPTH-1 downto 0);
+  signal bench_res_filter0_srrc_sam_q: std_logic_vector(CCSDS_RXTX_BENCH_FILTER0_SIG_QUANT_DEPTH-1 downto 0);
+  signal bench_res_filter0_srrc_sam_i_val: std_logic;
+  signal bench_res_filter0_srrc_sam_q_val: std_logic;
   -- framer
   signal bench_res_framer0_data_valid: std_logic;
   signal bench_res_framer0_data: std_logic_vector((CCSDS_RXTX_BENCH_FRAMER0_HEADER_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH)*8-1 downto 0);
   -- lfsr
   signal bench_res_lfsr0_data_valid: std_logic;
   signal bench_res_lfsr0_data: std_logic_vector(CCSDS_RXTX_BENCH_LFSR0_RESULT'length-1 downto 0);
+  -- mapper
+  signal bench_res_mapper0_sym_i: std_logic_vector(CCSDS_RXTX_BENCH_MAPPER0_BITS_PER_SYMBOL-1 downto 0);
+  signal bench_res_mapper0_sym_q: std_logic_vector(CCSDS_RXTX_BENCH_MAPPER0_BITS_PER_SYMBOL-1 downto 0);
+  signal bench_res_mapper0_sym_val: std_logic;
   -- serdes
   signal bench_res_serdes0_busy: std_logic;
   signal bench_res_serdes0_data_par: std_logic_vector(CCSDS_RXTX_BENCH_SERDES0_DEPTH-1 downto 0);
   signal bench_res_serdes0_data_par_valid: std_logic;
   signal bench_res_serdes0_data_ser: std_logic;
   signal bench_res_serdes0_data_ser_valid: std_logic;
+  -- srrc
+  signal bench_res_srrc0_sam: std_logic_vector(CCSDS_RXTX_BENCH_SRRC0_SIG_QUANT_DEPTH-1 downto 0);
+  signal bench_res_srrc0_sam_val: std_logic;
+  signal bench_res_srrc1_sam: std_logic_vector(CCSDS_RXTX_BENCH_SRRC0_SIG_QUANT_DEPTH-1 downto 0);
+  signal bench_res_srrc1_sam_val: std_logic;
 
 --=============================================================================
 -- architecture begin
 --=============================================================================
   begin
     -- Instance(s) of unit under test
-    rxtx_001: ccsds_rxtx_top
+    rxtx_000: ccsds_rxtx_top
       port map(
         wb_ack_o => bench_res_rxtx0_wb_ack,
         wb_adr_i => bench_sti_rxtx0_wb_adr,
@@ -358,7 +478,7 @@ architecture behaviour of ccsds_rxtx_bench is
         tx_ena_o => bench_res_rxtx0_tx_ena
       );
     -- Instance(s) of sub-components under test
-    buffer_001: ccsds_rxtx_buffer
+    buffer_000: ccsds_rxtx_buffer
       generic map(
         CCSDS_RXTX_BUFFER_DATA_BUS_SIZE => CCSDS_RXTX_BENCH_BUFFER0_DATA_BUS_SIZE,
         CCSDS_RXTX_BUFFER_SIZE => CCSDS_RXTX_BENCH_BUFFER0_SIZE
@@ -374,7 +494,7 @@ architecture behaviour of ccsds_rxtx_bench is
         nxt_dat_i => bench_sti_buffer0_next_data,
         dat_o => bench_res_buffer0_data
       );
-    crc_001: ccsds_rxtx_crc
+    crc_000: ccsds_rxtx_crc
       generic map(
         CCSDS_RXTX_CRC_DATA_LENGTH => CCSDS_RXTX_BENCH_CRC0_DATA'length/8,
         CCSDS_RXTX_CRC_LENGTH => CCSDS_RXTX_BENCH_CRC0_LENGTH,
@@ -398,7 +518,7 @@ architecture behaviour of ccsds_rxtx_bench is
         dat_o => bench_res_crc0_data,
         dat_val_o => bench_res_crc0_data_valid
       );
-    crc_random_001: ccsds_rxtx_crc
+    crc_001: ccsds_rxtx_crc
       generic map(
         CCSDS_RXTX_CRC_DATA_LENGTH => CCSDS_RXTX_BENCH_CRC0_RANDOM_DATA_BUS_SIZE,
         CCSDS_RXTX_CRC_LENGTH => CCSDS_RXTX_BENCH_CRC0_LENGTH,
@@ -422,7 +542,7 @@ architecture behaviour of ccsds_rxtx_bench is
         dat_o => bench_res_crc0_random_data,
         dat_val_o => bench_res_crc0_random_data_valid
       );
-    crc_checker_001: ccsds_rxtx_crc
+    crc_002: ccsds_rxtx_crc
       generic map(
         CCSDS_RXTX_CRC_DATA_LENGTH => CCSDS_RXTX_BENCH_CRC0_RANDOM_DATA_BUS_SIZE,
         CCSDS_RXTX_CRC_LENGTH => CCSDS_RXTX_BENCH_CRC0_LENGTH,
@@ -446,7 +566,25 @@ architecture behaviour of ccsds_rxtx_bench is
         dat_o => bench_res_crc0_check_data,
         dat_val_o => bench_res_crc0_check_data_valid
       );
-    framer_001 : ccsds_tx_framer
+    filter000: ccsds_tx_filter
+      generic map(
+        CCSDS_TX_FILTER_OVERSAMPLING_RATIO => CCSDS_RXTX_BENCH_FILTER0_OVERSAMPLING_RATIO,
+        CCSDS_TX_FILTER_OFFSET_PSK => CCSDS_RXTX_BENCH_FILTER0_OFFSET_PSK,
+        CCSDS_TX_FILTER_SIG_QUANT_DEPTH => CCSDS_RXTX_BENCH_FILTER0_SIG_QUANT_DEPTH,
+        CCSDS_TX_FILTER_MODULATION_TYPE => CCSDS_RXTX_BENCH_FILTER0_MODULATION_TYPE,
+        CCSDS_TX_FILTER_BITS_PER_SYMBOL => CCSDS_RXTX_BENCH_FILTER0_BITS_PER_SYMBOL
+      )
+      port map(
+        clk_i => bench_sti_filter0_clk,
+        sym_i_i => bench_sti_filter0_sym_i,
+        sym_q_i => bench_sti_filter0_sym_q,
+        sym_val_i => bench_sti_filter0_sym_val,
+        rst_i => bench_sti_filter0_rst,
+        sam_val_o => bench_res_filter0_sam_val,
+        sam_i_o => bench_res_filter0_sam_i,
+        sam_q_o => bench_res_filter0_sam_q
+      );
+    framer_000: ccsds_tx_framer
       generic map (
         CCSDS_TX_FRAMER_HEADER_LENGTH => CCSDS_RXTX_BENCH_FRAMER0_HEADER_LENGTH,
         CCSDS_TX_FRAMER_FOOTER_LENGTH => CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH,
@@ -462,7 +600,7 @@ architecture behaviour of ccsds_rxtx_bench is
         dat_val_o => bench_res_framer0_data_valid,
         dat_o => bench_res_framer0_data
       );
-    lfsr_001: ccsds_rxtx_lfsr
+    lfsr_000: ccsds_rxtx_lfsr
       generic map(
         CCSDS_RXTX_LFSR_DATA_BUS_SIZE => CCSDS_RXTX_BENCH_LFSR0_RESULT'length,
         CCSDS_RXTX_LFSR_MEMORY_SIZE => CCSDS_RXTX_BENCH_LFSR0_MEMORY_SIZE,
@@ -476,7 +614,37 @@ architecture behaviour of ccsds_rxtx_bench is
         dat_val_o => bench_res_lfsr0_data_valid,
         dat_o => bench_res_lfsr0_data
       );
-    serdes_001: ccsds_rxtx_serdes
+    mapper_000: ccsds_tx_mapper
+      generic map(
+        CCSDS_TX_MAPPER_DATA_BUS_SIZE => CCSDS_RXTX_BENCH_MAPPER0_DATA_BUS_SIZE,
+        CCSDS_TX_MAPPER_MODULATION_TYPE => CCSDS_RXTX_BENCH_MAPPER0_MODULATION_TYPE,
+        CCSDS_TX_MAPPER_BITS_PER_SYMBOL => CCSDS_RXTX_BENCH_MAPPER0_BITS_PER_SYMBOL
+      )
+      port map(
+        clk_i => bench_sti_mapper0_clk,
+        dat_i => bench_sti_mapper0_data,
+        dat_val_i => bench_sti_mapper0_dat_val,
+        rst_i => bench_sti_mapper0_rst,
+        sym_i_o => bench_res_mapper0_sym_i,
+        sym_q_o => bench_res_mapper0_sym_q,
+        sym_val_o => bench_res_mapper0_sym_val
+      );
+    mapper_001: ccsds_tx_mapper
+      generic map(
+        CCSDS_TX_MAPPER_DATA_BUS_SIZE => CCSDS_RXTX_BENCH_FILTER0_MAPPER_DATA_BUS_SIZE,
+        CCSDS_TX_MAPPER_MODULATION_TYPE => CCSDS_RXTX_BENCH_FILTER0_MODULATION_TYPE,
+        CCSDS_TX_MAPPER_BITS_PER_SYMBOL => CCSDS_RXTX_BENCH_FILTER0_BITS_PER_SYMBOL
+      )
+      port map(
+        clk_i => bench_sti_filter0_mapper_clk,
+        dat_i => bench_sti_filter0_mapper_data,
+        dat_val_i => bench_sti_filter0_mapper_dat_val,
+        rst_i => bench_sti_filter0_rst,
+        sym_i_o => bench_sti_filter0_sym_i,
+        sym_q_o => bench_sti_filter0_sym_q,
+        sym_val_o => bench_sti_filter0_sym_val
+      );
+    serdes_000: ccsds_rxtx_serdes
       generic map(
         CCSDS_RXTX_SERDES_DEPTH => CCSDS_RXTX_BENCH_SERDES0_DEPTH
       )
@@ -493,7 +661,66 @@ architecture behaviour of ccsds_rxtx_bench is
         dat_ser_o => bench_res_serdes0_data_ser,
         dat_ser_val_o => bench_res_serdes0_data_ser_valid
       );
-
+    srrc_000: ccsds_rxtx_srrc
+      generic map(
+        CCSDS_RXTX_SRRC_APODIZATION_WINDOW_TYPE => CCSDS_RXTX_BENCH_SRRC0_APODIZATION_WINDOW_TYPE,
+        CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO => CCSDS_RXTX_BENCH_SRRC0_OVERSAMPLING_RATIO,
+        CCSDS_RXTX_SRRC_ROLL_OFF => CCSDS_RXTX_BENCH_SRRC0_ROLL_OFF,
+        CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH => CCSDS_RXTX_BENCH_SRRC0_SIG_QUANT_DEPTH
+      )
+      port map(
+        clk_i => bench_sti_srrc0_clk,
+        sam_i => bench_sti_srrc0_sam,
+        sam_val_i => bench_sti_srrc0_sam_val,
+        rst_i => bench_sti_srrc0_rst,
+        sam_o => bench_res_srrc0_sam,
+        sam_val_o => bench_res_srrc0_sam_val
+      );
+    srrc_001: ccsds_rxtx_srrc
+      generic map(
+        CCSDS_RXTX_SRRC_APODIZATION_WINDOW_TYPE => CCSDS_RXTX_BENCH_SRRC0_APODIZATION_WINDOW_TYPE,
+        CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO => CCSDS_RXTX_BENCH_SRRC0_OVERSAMPLING_RATIO,
+        CCSDS_RXTX_SRRC_ROLL_OFF => CCSDS_RXTX_BENCH_SRRC0_ROLL_OFF,
+        CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH => CCSDS_RXTX_BENCH_SRRC0_SIG_QUANT_DEPTH
+      )
+      port map(
+        clk_i => bench_sti_srrc0_clk,
+        sam_i => bench_res_srrc0_sam,
+        sam_val_i => bench_res_srrc0_sam_val,
+        rst_i => bench_sti_srrc0_rst,
+        sam_o => bench_res_srrc1_sam,
+        sam_val_o => bench_res_srrc1_sam_val
+      );
+    srrc_002: ccsds_rxtx_srrc
+      generic map(
+        CCSDS_RXTX_SRRC_APODIZATION_WINDOW_TYPE => 1,
+        CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO => CCSDS_RXTX_BENCH_FILTER0_OVERSAMPLING_RATIO,
+        CCSDS_RXTX_SRRC_ROLL_OFF => CCSDS_RXTX_BENCH_FILTER0_ROLL_OFF,
+        CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH => CCSDS_RXTX_BENCH_FILTER0_SIG_QUANT_DEPTH
+      )
+      port map(
+        clk_i => bench_sti_filter0_clk,
+        sam_i => bench_res_filter0_sam_i,
+        sam_val_i => bench_res_filter0_sam_val,
+        rst_i => bench_sti_filter0_rst,
+        sam_o => bench_res_filter0_srrc_sam_i,
+        sam_val_o => bench_res_filter0_srrc_sam_i_val
+      );
+    srrc_003: ccsds_rxtx_srrc
+      generic map(
+        CCSDS_RXTX_SRRC_APODIZATION_WINDOW_TYPE => 1,
+        CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO => CCSDS_RXTX_BENCH_FILTER0_OVERSAMPLING_RATIO,
+        CCSDS_RXTX_SRRC_ROLL_OFF => CCSDS_RXTX_BENCH_FILTER0_ROLL_OFF,
+        CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH => CCSDS_RXTX_BENCH_FILTER0_SIG_QUANT_DEPTH
+      )
+      port map(
+        clk_i => bench_sti_filter0_clk,
+        sam_i => bench_res_filter0_sam_q,
+        sam_val_i => bench_res_filter0_sam_val,
+        rst_i => bench_sti_filter0_rst,
+        sam_o => bench_res_filter0_srrc_sam_q,
+        sam_val_o => bench_res_filter0_srrc_sam_q_val
+      );
     --=============================================================================
     -- Begin of bench_sti_rxtx0_wb_clkp
     -- bench_sti_rxtx0_wb_clk generation
@@ -565,6 +792,34 @@ architecture behaviour of ccsds_rxtx_bench is
         wait for CCSDS_RXTX_BENCH_CRC0_CLK_PERIOD/2;
       end process;
     --=============================================================================
+    -- Begin of bench_sti_filter0_clkp
+    -- bench_sti_filter0_clk generation
+    --=============================================================================
+    -- read: 
+    -- write: bench_sti_filter0_clk
+    -- r/w: 
+    BENCH_STI_FILTER0_CLKP : process
+      begin
+        bench_sti_filter0_clk <= '1';
+        wait for CCSDS_RXTX_BENCH_FILTER0_CLK_PERIOD/2;
+        bench_sti_filter0_clk <= '0';
+        wait for CCSDS_RXTX_BENCH_FILTER0_CLK_PERIOD/2;
+      end process;
+    --=============================================================================
+    -- Begin of bench_sti_filter0_mapper_clkp
+    -- bench_sti_filter0_mapper_clk generation
+    --=============================================================================
+    -- read: 
+    -- write: bench_sti_filter0_mapper_clk
+    -- r/w: 
+    BENCH_STI_FILTER0_MAPPER_CLKP : process
+      begin
+        bench_sti_filter0_mapper_clk <= '1';
+        wait for CCSDS_RXTX_BENCH_FILTER0_MAPPER_CLK_PERIOD/2;
+        bench_sti_filter0_mapper_clk <= '0';
+        wait for CCSDS_RXTX_BENCH_FILTER0_MAPPER_CLK_PERIOD/2;
+      end process;
+    --=============================================================================
     -- Begin of bench_sti_framer0_clkp
     -- bench_sti_framer0_clk generation
     --=============================================================================
@@ -593,6 +848,20 @@ architecture behaviour of ccsds_rxtx_bench is
         wait for CCSDS_RXTX_BENCH_LFSR0_CLK_PERIOD/2;
       end process;
     --=============================================================================
+    -- Begin of bench_sti_mapper0_clkp
+    -- bench_sti_mapper0_clk generation
+    --=============================================================================
+    -- read: 
+    -- write: bench_sti_mapper0_clk
+    -- r/w: 
+    BENCH_STI_MAPPER0_CLKP : process
+      begin
+        bench_sti_mapper0_clk <= '1';
+        wait for CCSDS_RXTX_BENCH_MAPPER0_CLK_PERIOD/2;
+        bench_sti_mapper0_clk <= '0';
+        wait for CCSDS_RXTX_BENCH_MAPPER0_CLK_PERIOD/2;
+      end process;
+    --=============================================================================
     -- Begin of bench_sti_serdes0_clkp
     -- bench_sti_serdes0_clk generation
     --=============================================================================
@@ -607,6 +876,20 @@ architecture behaviour of ccsds_rxtx_bench is
         wait for CCSDS_RXTX_BENCH_SERDES0_CLK_PERIOD/2;
       end process;
     --=============================================================================
+    -- Begin of bench_sti_srrc0_clkp
+    -- bench_sti_srrc0_clk generation
+    --=============================================================================
+    -- read: 
+    -- write: bench_sti_srrc0_clk
+    -- r/w: 
+    BENCH_STI_SRRC0_CLKP : process
+      begin
+        bench_sti_srrc0_clk <= '1';
+        wait for CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD/2;
+        bench_sti_srrc0_clk <= '0';
+        wait for CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD/2;
+      end process;
+    --=============================================================================
     -- Begin of bench_sti_rxtx0_tx_datap
     -- bench_sti_rxtx0_tx_data generation / dephased from 1/2 clk with bench_sti_rxtx0_tx_clk
     --=============================================================================
@@ -617,17 +900,16 @@ architecture behaviour of ccsds_rxtx_bench is
       variable seed1, seed2 : positive := CCSDS_RXTX_BENCH_SEED;
       variable random : std_logic_vector(1 downto 0);
       begin
-        wait for CCSDS_RXTX_BENCH_RXTX0_TX_CLK_PERIOD/2;
         if (bench_ena_rxtx0_random_data = '1') then
           sim_generate_random_std_logic_vector(2,seed1,seed2,random);
           sim_generate_random_std_logic_vector(2,seed1,seed2,random);
           bench_sti_rxtx0_tx_data_ser <= random(0);
         end if;
-        wait for CCSDS_RXTX_BENCH_RXTX0_TX_CLK_PERIOD/2;
+        wait for CCSDS_RXTX_BENCH_RXTX0_TX_CLK_PERIOD;
       end process;
     --=============================================================================
     -- Begin of bench_sti_buffer0_datap
-    -- bench_sti_buffer0_data generation / dephased from 1/2 clk with bench_sti_buffer0_clk
+    -- bench_sti_buffer0_data generation
     --=============================================================================
     -- read: bench_ena_buffer0_random_data
     -- write: bench_sti_buffer0_data
@@ -636,17 +918,16 @@ architecture behaviour of ccsds_rxtx_bench is
       variable seed1, seed2 : positive := CCSDS_RXTX_BENCH_SEED;
       variable random : std_logic_vector(CCSDS_RXTX_BENCH_BUFFER0_DATA_BUS_SIZE-1 downto 0);
       begin
-        wait for CCSDS_RXTX_BENCH_BUFFER0_CLK_PERIOD/2;
         if (bench_ena_buffer0_random_data = '1') then
           sim_generate_random_std_logic_vector(CCSDS_RXTX_BENCH_BUFFER0_DATA_BUS_SIZE,seed1,seed2,random);
           sim_generate_random_std_logic_vector(CCSDS_RXTX_BENCH_BUFFER0_DATA_BUS_SIZE,seed1,seed2,random);
           bench_sti_buffer0_data <= random;
         end if;
-        wait for CCSDS_RXTX_BENCH_BUFFER0_CLK_PERIOD/2;
+        wait for CCSDS_RXTX_BENCH_BUFFER0_CLK_PERIOD;
       end process;
     --=============================================================================
     -- Begin of bench_sti_crc0_datap
-    -- bench_sti_crc0_random_data generation / dephased from 1/2 clk with bench_sti_crc0_clk
+    -- bench_sti_crc0_random_data generation
     --=============================================================================
     -- read: bench_ena_crc0_random_data
     -- write: bench_sti_crc0_random_data
@@ -655,17 +936,34 @@ architecture behaviour of ccsds_rxtx_bench is
       variable seed1, seed2 : positive := CCSDS_RXTX_BENCH_SEED;
       variable random : std_logic_vector(CCSDS_RXTX_BENCH_CRC0_RANDOM_DATA_BUS_SIZE*8-1 downto 0);
       begin
-        wait for CCSDS_RXTX_BENCH_CRC0_CLK_PERIOD/2;
         if (bench_ena_crc0_random_data = '1') then
           sim_generate_random_std_logic_vector(CCSDS_RXTX_BENCH_CRC0_RANDOM_DATA_BUS_SIZE*8,seed1,seed2,random);
           sim_generate_random_std_logic_vector(CCSDS_RXTX_BENCH_CRC0_RANDOM_DATA_BUS_SIZE*8,seed1,seed2,random);
           bench_sti_crc0_random_data <= random;
         end if;
-        wait for CCSDS_RXTX_BENCH_CRC0_CLK_PERIOD/2;
+        wait for CCSDS_RXTX_BENCH_CRC0_CLK_PERIOD;
+      end process;
+    --=============================================================================
+    -- Begin of bench_sti_filter0_datap
+    -- bench_sti_filter0_mapper_data generation
+    --=============================================================================
+    -- read: bench_ena_filter0_random_data
+    -- write: bench_sti_filter0_mapper_data
+    -- r/w: 
+    BENCH_STI_FILTER0_DATAP : process
+      variable seed1, seed2 : positive := CCSDS_RXTX_BENCH_SEED;
+      variable random : std_logic_vector(CCSDS_RXTX_BENCH_FILTER0_MAPPER_DATA_BUS_SIZE-1 downto 0);
+      begin
+        if (bench_ena_filter0_random_data = '1') then
+          sim_generate_random_std_logic_vector(CCSDS_RXTX_BENCH_FILTER0_MAPPER_DATA_BUS_SIZE,seed1,seed2,random);
+          sim_generate_random_std_logic_vector(CCSDS_RXTX_BENCH_FILTER0_MAPPER_DATA_BUS_SIZE,seed1,seed2,random);
+          bench_sti_filter0_mapper_data <= random;
+        end if;
+        wait for CCSDS_RXTX_BENCH_FILTER0_MAPPER_DATA_CLK_PERIOD;
       end process;
     --=============================================================================
     -- Begin of bench_sti_framer0_datap
-    -- bench_sti_framer0_data generation / dephased from 1/2 clk with bench_sti_datalinklayer0_clk
+    -- bench_sti_framer0_data generation
     --=============================================================================
     -- read: bench_ena_framer0_random_data
     -- write: bench_sti_framer0_data
@@ -674,17 +972,34 @@ architecture behaviour of ccsds_rxtx_bench is
       variable seed1, seed2 : positive := CCSDS_RXTX_BENCH_SEED;
       variable random : std_logic_vector(CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE-1 downto 0);
       begin
-        wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD/2;
         if (bench_ena_framer0_random_data = '1') then
           sim_generate_random_std_logic_vector(CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE,seed1,seed2,random);
           sim_generate_random_std_logic_vector(CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE,seed1,seed2,random);
           bench_sti_framer0_data <= random;
         end if;
-        wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD/2;
+        wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
+      end process;
+    --=============================================================================
+    -- Begin of bench_sti_mapper0_datap
+    -- bench_sti_mapper0_data generation
+    --=============================================================================
+    -- read: bench_ena_mapper0_random_data
+    -- write: bench_sti_mapper0_data
+    -- r/w: 
+    BENCH_STI_MAPPER0_DATAP : process
+      variable seed1, seed2 : positive := CCSDS_RXTX_BENCH_SEED;
+      variable random : std_logic_vector(CCSDS_RXTX_BENCH_MAPPER0_DATA_BUS_SIZE-1 downto 0);
+      begin
+        if (bench_ena_mapper0_random_data = '1') then
+          sim_generate_random_std_logic_vector(CCSDS_RXTX_BENCH_MAPPER0_DATA_BUS_SIZE,seed1,seed2,random);
+          sim_generate_random_std_logic_vector(CCSDS_RXTX_BENCH_MAPPER0_DATA_BUS_SIZE,seed1,seed2,random);
+          bench_sti_mapper0_data <= random;
+        end if;
+        wait for CCSDS_RXTX_BENCH_MAPPER0_DATA_CLK_PERIOD;
       end process;
     --=============================================================================
     -- Begin of bench_sti_serdes0_datap
-    -- bench_sti_serdes0_data generation / dephased from 1/2 clk with bench_sti_serdes0_clk
+    -- bench_sti_serdes0_data generation
     --=============================================================================
     -- read: bench_ena_serdes0_random_data
     -- write: bench_sti_serdes0_data_par, bench_sti_serdes0_data_ser
@@ -693,18 +1008,17 @@ architecture behaviour of ccsds_rxtx_bench is
       variable seed1, seed2 : positive := CCSDS_RXTX_BENCH_SEED;
       variable random : std_logic_vector(CCSDS_RXTX_BENCH_SERDES0_DEPTH-1 downto 0);
       begin
-        wait for CCSDS_RXTX_BENCH_SERDES0_CLK_PERIOD/2;
         if (bench_ena_serdes0_random_data = '1') then
           sim_generate_random_std_logic_vector(CCSDS_RXTX_BENCH_SERDES0_DEPTH,seed1,seed2,random);
           sim_generate_random_std_logic_vector(CCSDS_RXTX_BENCH_SERDES0_DEPTH,seed1,seed2,random);
           bench_sti_serdes0_data_par <= random;
           bench_sti_serdes0_data_ser <= random(0);
         end if;
-        wait for CCSDS_RXTX_BENCH_SERDES0_CLK_PERIOD/2;
+        wait for CCSDS_RXTX_BENCH_SERDES0_CLK_PERIOD;
       end process;
     --=============================================================================
     -- Begin of bench_sti_rxtx0_rx_samplesp
-    -- bench_sti_rxtx0_rx_samples generation / dephased from 1/2 clk with bench_sti_rxtx0_rx_clk signal
+    -- bench_sti_rxtx0_rx_samples generation
     --=============================================================================
     -- read: bench_ena_rxtx0_random_data
     -- write: bench_sti_rxtx0_rx_samples_i, bench_sti_rxtx0_rx_samples_q
@@ -714,7 +1028,6 @@ architecture behaviour of ccsds_rxtx_bench is
       variable random1 : std_logic_vector(CCSDS_RXTX_BENCH_RXTX0_RX_PHYS_SIG_QUANT_DEPTH-1 downto 0);
       variable random2 : std_logic_vector(CCSDS_RXTX_BENCH_RXTX0_RX_PHYS_SIG_QUANT_DEPTH-1 downto 0);
       begin
-        wait for CCSDS_RXTX_BENCH_RXTX0_RX_CLK_PERIOD/2;
         if (bench_ena_rxtx0_random_data = '1') then
           sim_generate_random_std_logic_vector(CCSDS_RXTX_BENCH_RXTX0_RX_PHYS_SIG_QUANT_DEPTH,seed1,seed2,random1);
           sim_generate_random_std_logic_vector(CCSDS_RXTX_BENCH_RXTX0_RX_PHYS_SIG_QUANT_DEPTH,seed2,seed1,random2);
@@ -723,11 +1036,11 @@ architecture behaviour of ccsds_rxtx_bench is
           bench_sti_rxtx0_rx_samples_i <= random1;
           bench_sti_rxtx0_rx_samples_q <= random2;
         end if;
-        wait for CCSDS_RXTX_BENCH_RXTX0_RX_CLK_PERIOD/2;
+        wait for CCSDS_RXTX_BENCH_RXTX0_RX_CLK_PERIOD;
       end process;
     --=============================================================================
     -- Begin of bench_sti_rxtx0_wb_datap
-    -- bench_sti_rxtx0_wb_random_dat generation / dephased from 1/2 clk with bench_sti_rxtx0_wb_clk signal
+    -- bench_sti_rxtx0_wb_random_dat generation
     --=============================================================================
     -- read: bench_ena_rxtx0_random_data
     -- write: bench_sti_rxtx0_wb_random_dat0
@@ -736,13 +1049,12 @@ architecture behaviour of ccsds_rxtx_bench is
       variable seed1, seed2 : positive := CCSDS_RXTX_BENCH_SEED;
       variable random1 : std_logic_vector(CCSDS_RXTX_BENCH_RXTX0_WB_DATA_BUS_SIZE-1 downto 0);
       begin
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD/2;
         if (bench_ena_rxtx0_random_data = '1') then
           sim_generate_random_std_logic_vector(CCSDS_RXTX_BENCH_RXTX0_WB_DATA_BUS_SIZE,seed1,seed2,random1);
           sim_generate_random_std_logic_vector(CCSDS_RXTX_BENCH_RXTX0_WB_DATA_BUS_SIZE,seed1,seed2,random1);
           bench_sti_rxtx0_wb_random_dat <= random1;
         end if;
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD/2;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;
       end process;
     --=============================================================================
     -- Begin of bufferrwp
@@ -1048,6 +1360,57 @@ architecture behaviour of ccsds_rxtx_bench is
         wait;
       end process;
     --=============================================================================
+    -- Begin of filterp
+    -- generation of filter subsystem unit-tests
+    --=============================================================================
+    -- read: 
+    -- write: 
+    -- r/w: 
+    FILTERP : process
+      begin
+      -- let the system free run
+        wait for (CCSDS_RXTX_BENCH_START_FREE_RUN_DURATION/2);
+      -- default state tests:
+      if (bench_res_filter0_sam_val = '0') then
+        report "FILTERP: OK - Default state - Output samples are not valid" severity note;
+      else
+        report "FILTERP: KO - Default state - Output samples are valid" severity warning;
+      end if;
+      -- let the system reset
+        wait for (CCSDS_RXTX_BENCH_START_FREE_RUN_DURATION/2 + CCSDS_RXTX_BENCH_START_RESET_SIG_DURATION + CCSDS_RXTX_BENCH_START_FILTER_WAIT_DURATION);
+      -- initial state tests:
+      -- default state tests:
+      if (bench_res_filter0_sam_val = '0') then
+        report "FILTERP: OK - Initial state - Output samples are not valid" severity note;
+      else
+        report "FILTERP: KO - Initial state - Output samples are valid" severity warning;
+      end if;
+      -- behaviour tests:
+        report "FILTERP: START FILTER TESTS" severity note;
+        bench_ena_filter0_random_data <= '1';
+        wait for CCSDS_RXTX_BENCH_FILTER0_MAPPER_DATA_CLK_PERIOD;
+        bench_sti_filter0_mapper_dat_val <= '1';
+        wait for CCSDS_RXTX_BENCH_FILTER0_MAPPER_CLK_PERIOD*12;
+        if (bench_res_filter0_sam_val = '1') then
+          report "FILTERP: OK - Output samples are valid" severity note;
+        else
+          report "FILTERP: KO - Output samples are not valid" severity warning;
+        end if;
+        wait for CCSDS_RXTX_BENCH_FILTER0_MAPPER_CLK_PERIOD*CCSDS_RXTX_BENCH_FILTER0_SYMBOL_WORDS_NUMBER;
+        bench_sti_filter0_mapper_dat_val <= '0';
+        bench_ena_filter0_random_data <= '0';
+        wait for CCSDS_RXTX_BENCH_FILTER0_MAPPER_CLK_PERIOD*12;
+      -- final state tests:
+        if (bench_res_filter0_sam_val = '0') then
+          report "FILTERP: OK - Final state - Output samples are not valid" severity note;
+        else
+          report "FILTERP: KO - Final state - Output samples are valid" severity warning;
+        end if;
+        report "FILTERP: END FILTER TESTS" severity note;
+      -- do nothing
+        wait;
+      end process;
+    --=============================================================================
     -- Begin of framerp
     -- generation of framer subsystem unit-tests
     --=============================================================================
@@ -1216,9 +1579,9 @@ architecture behaviour of ccsds_rxtx_bench is
       end process;
     --=============================================================================
     -- Begin of lfsrp
-    -- generation of lfsr subsystem read-write unit-tests
+    -- generation of lfsr subsystem unit-tests
     --=============================================================================
-    -- read: 
+    -- read: bench_res_lfsr0_data, bench_res_lfsr0_data_valid
     -- write: 
     -- r/w: 
     LFSRP : process
@@ -1244,6 +1607,31 @@ architecture behaviour of ccsds_rxtx_bench is
         end if;
       -- final state tests:
         report "LFSRP: END LFSR TESTS" severity note;
+      -- do nothing
+        wait;
+      end process;
+    --=============================================================================
+    -- Begin of mapperp
+    -- generation of mapper subsystem unit-tests
+    --=============================================================================
+    -- read: 
+    -- write: bench_sti_mapper0_dat_val, bench_sti_mapper0_dat_val
+    -- r/w: 
+    MAPPERP : process
+      begin
+      -- let the system free run
+        wait for (CCSDS_RXTX_BENCH_START_FREE_RUN_DURATION/2);
+      -- default state tests:
+      -- let the system reset
+        wait for (CCSDS_RXTX_BENCH_START_FREE_RUN_DURATION/2 + CCSDS_RXTX_BENCH_START_RESET_SIG_DURATION + CCSDS_RXTX_BENCH_START_MAPPER_WAIT_DURATION);
+      -- initial state tests:
+      -- behaviour tests:
+        report "MAPPERP: START MAPPER TESTS" severity note;
+        bench_ena_mapper0_random_data <= '1';
+        wait for CCSDS_RXTX_BENCH_MAPPER0_CLK_PERIOD;
+        bench_sti_mapper0_dat_val <= '1';
+      -- final state tests:
+        report "MAPPERP: END MAPPER TESTS" severity note;
       -- do nothing
         wait;
       end process;
@@ -1452,6 +1840,70 @@ architecture behaviour of ccsds_rxtx_bench is
         wait;
       end process;
     --=============================================================================
+    -- Begin of srrcp
+    -- generation of SRRC subsystem unit-tests
+    --=============================================================================
+    -- read: 
+    -- write: 
+    -- r/w: 
+    SRRCP : process
+    constant srrc_zero: std_logic_vector(CCSDS_RXTX_BENCH_SRRC0_SIG_QUANT_DEPTH-1 downto 0) := (others => '0');
+      begin
+      -- let the system free run
+        wait for (CCSDS_RXTX_BENCH_START_FREE_RUN_DURATION/2);
+      -- default state tests:
+        if (bench_res_srrc0_sam_val = '0') then
+          report "SRRCP: OK - Default state - SRRC samples are not valid" severity note;
+        else
+          report "SRRCP: KO - Default state - SRRC samples are valid" severity warning;
+        end if;
+      -- let the system reset
+        wait for (CCSDS_RXTX_BENCH_START_FREE_RUN_DURATION/2 + CCSDS_RXTX_BENCH_START_RESET_SIG_DURATION + CCSDS_RXTX_BENCH_START_SRRC_WAIT_DURATION);
+      -- initial state tests:
+        if (bench_res_srrc0_sam_val = '0') then
+          report "SRRCP: OK - Initial state - SRRC samples are not valid" severity note;
+        else
+          report "SRRCP: KO - Initial state - SRRC samples are valid" severity warning;
+        end if;
+        if (bench_res_srrc0_sam = srrc_zero) then
+          report "SRRCP: OK - Initial state - SRRC samples are null" severity note;
+        else
+          report "SRRCP: KO - Initial state - SRRC samples are not null" severity warning;
+        end if;
+      -- behaviour tests:
+        report "SRRCP: START SRRC TESTS" severity note;
+        bench_sti_srrc0_sam(CCSDS_RXTX_BENCH_SRRC0_SIG_QUANT_DEPTH-1) <= '0';
+        bench_sti_srrc0_sam(CCSDS_RXTX_BENCH_SRRC0_SIG_QUANT_DEPTH-2 downto 0) <= (others => '1');
+        bench_sti_srrc0_sam_val <= '1';
+        wait for CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
+        bench_sti_srrc0_sam <= (others => '0');
+        wait for 400*CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
+        bench_sti_srrc0_sam(0) <= '1';
+        wait for CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
+        bench_sti_srrc0_sam <= (others => '0');
+        wait for 400*CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
+        bench_sti_srrc0_sam(CCSDS_RXTX_BENCH_SRRC0_SIG_QUANT_DEPTH-1) <= '1';
+        bench_sti_srrc0_sam(CCSDS_RXTX_BENCH_SRRC0_SIG_QUANT_DEPTH-2 downto 0) <= (others => '0');
+        wait for CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
+        bench_sti_srrc0_sam <= (others => '0');
+        wait for 400*CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
+        bench_sti_srrc0_sam_val <= '0';
+      -- final state tests:
+        if (bench_res_srrc0_sam_val = '0') then
+          report "SRRCP: OK - Final state - SRRC samples are not valid" severity note;
+        else
+          report "SRRCP: KO - Final state - SRRC samples are valid" severity warning;
+        end if;
+        if (bench_res_srrc0_sam = srrc_zero) then
+          report "SRRCP: OK - Final state - SRRC samples are null" severity note;
+        else
+          report "SRRCP: KO - Final state - SRRC samples are not null" severity warning;
+        end if;
+        report "SRRCP: END SRRC TESTS" severity note;
+      -- do nothing
+        wait;
+      end process;
+    --=============================================================================
     -- Begin of resetp
     -- generation of reset pulses
     --=============================================================================
@@ -1467,8 +1919,11 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_rxtx0_wb_rst <= '1';
         bench_sti_crc0_rst <= '1';
         bench_sti_buffer0_rst <= '1';
+        bench_sti_filter0_rst <= '1';
         bench_sti_framer0_rst <= '1';
         bench_sti_lfsr0_rst <= '1';
+        bench_sti_mapper0_rst <= '1';
+        bench_sti_srrc0_rst <= '1';
         -- wait for some time
         wait for CCSDS_RXTX_BENCH_START_RESET_SIG_DURATION;
         report "RESETP: END RESET SIGNAL TEST" severity note;
@@ -1476,8 +1931,11 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_rxtx0_wb_rst <= '0';
         bench_sti_crc0_rst <= '0';
         bench_sti_buffer0_rst <= '0';
+        bench_sti_filter0_rst <= '0';
         bench_sti_framer0_rst <= '0';
         bench_sti_lfsr0_rst <= '0';
+        bench_sti_mapper0_rst <= '0';
+        bench_sti_srrc0_rst <= '0';
         -- do nothing
         wait;
       end process;
@@ -1529,18 +1987,18 @@ architecture behaviour of ccsds_rxtx_bench is
       -- behaviour tests:
         report "WBRWP: START WISHBONE BUS READ-WRITE TESTS" severity note;
         bench_ena_rxtx0_random_data <= '1';
-        bench_sti_rxtx0_wb_we <= '0';
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;
         -- start a basic rx read cycle
+        bench_sti_rxtx0_wb_we <= '0';
         bench_sti_rxtx0_wb_adr <= "0000";
         bench_sti_rxtx0_wb_cyc <= '1';
         bench_sti_rxtx0_wb_stb <= '1';
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*1.5;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
         if (bench_res_rxtx0_wb_ack = '1') and (bench_res_rxtx0_wb_err = '0') and (bench_res_rxtx0_wb_rty = '0') then
           report "WBRWP: OK - RX read cycle success" severity note;
         else
           report "WBRWP: KO - RX read cycle fail" severity warning;
         end if;
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD/2;
         bench_sti_rxtx0_wb_cyc <= '0';
         bench_sti_rxtx0_wb_stb <= '0';
         bench_sti_rxtx0_wb_we <= '0';
@@ -1551,13 +2009,12 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_rxtx0_wb_adr <= "0001";
         bench_sti_rxtx0_wb_cyc <= '1';
         bench_sti_rxtx0_wb_stb <= '1';
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*1.5;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
         if (bench_res_rxtx0_wb_ack = '0') and (bench_res_rxtx0_wb_err = '1') and (bench_res_rxtx0_wb_rty = '1') then
           report "WBRWP: OK - Error read cycle success" severity note;
         else
           report "WBRWP: KO - Error read cycle fail" severity warning;
         end if;
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD/2;
         bench_sti_rxtx0_wb_cyc <= '0';
         bench_sti_rxtx0_wb_stb <= '0';
         bench_sti_rxtx0_wb_we <= '0';
@@ -1570,13 +2027,12 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_rxtx0_wb_dat <= (others => '0');
         bench_sti_rxtx0_wb_cyc <= '1';
         bench_sti_rxtx0_wb_stb <= '1';
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*1.5;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
         if (bench_res_rxtx0_wb_ack = '1') and (bench_res_rxtx0_wb_err = '0') and (bench_res_rxtx0_wb_rty = '0') then
           report "WBRWP: OK - RXTX configuration write cycle success (RX disabled)" severity note;
         else
           report "WBRWP: KO - RXTX configuration write cycle fail" severity warning;
         end if;
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD/2;
         bench_sti_rxtx0_wb_cyc <= '0';
         bench_sti_rxtx0_wb_stb <= '0';
         bench_sti_rxtx0_wb_we <= '0';
@@ -1589,13 +2045,12 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_rxtx0_wb_dat <= (others => '0');
         bench_sti_rxtx0_wb_cyc <= '1';
         bench_sti_rxtx0_wb_stb <= '1';
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*1.5;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
         if (bench_res_rxtx0_wb_ack = '1') and (bench_res_rxtx0_wb_err = '0') and (bench_res_rxtx0_wb_rty = '0') then
           report "WBRWP: OK - RXTX configuration write cycle success (TX disabled)" severity note;
         else
           report "WBRWP: KO - RXTX configuration write cycle fail" severity warning;
         end if;
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD/2;
         bench_sti_rxtx0_wb_cyc <= '0';
         bench_sti_rxtx0_wb_stb <= '0';
         bench_sti_rxtx0_wb_we <= '0';
@@ -1608,13 +2063,12 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_rxtx0_wb_dat <= "00000000000000000000000000000001";
         bench_sti_rxtx0_wb_cyc <= '1';
         bench_sti_rxtx0_wb_stb <= '1';
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*1.5;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
         if (bench_res_rxtx0_wb_ack = '1') and (bench_res_rxtx0_wb_err = '0') and (bench_res_rxtx0_wb_rty = '0') then
           report "WBRWP: OK - RXTX configuration write cycle success (TX enabled + internal WB data use)" severity note;
         else
           report "WBRWP: KO - RXTX configuration write cycle fail" severity warning;
         end if;
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD/2;
         bench_sti_rxtx0_wb_cyc <= '0';
         bench_sti_rxtx0_wb_stb <= '0';
         bench_sti_rxtx0_wb_we <= '0';
@@ -1627,13 +2081,12 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_rxtx0_wb_dat <= bench_sti_rxtx0_wb_random_dat;
         bench_sti_rxtx0_wb_cyc <= '1';
         bench_sti_rxtx0_wb_stb <= '1';
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*1.5;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
         if (bench_res_rxtx0_wb_ack = '1') and (bench_res_rxtx0_wb_err = '0') and (bench_res_rxtx0_wb_rty = '0') then
           report "WBRWP: OK - TX write cycle success" severity note;
         else
           report "WBRWP: KO - TX write cycle fail" severity warning;
         end if;
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD/2;
         bench_sti_rxtx0_wb_cyc <= '0';
         bench_sti_rxtx0_wb_stb <= '0';
         bench_sti_rxtx0_wb_we <= '0';
@@ -1646,13 +2099,12 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_rxtx0_wb_dat <= bench_sti_rxtx0_wb_random_dat;
         bench_sti_rxtx0_wb_cyc <= '1';
         bench_sti_rxtx0_wb_stb <= '1';
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*1.5;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
         if (bench_res_rxtx0_wb_ack = '0') and (bench_res_rxtx0_wb_err = '1') and (bench_res_rxtx0_wb_rty = '1') then
           report "WBRWP: OK - Error write cycle success" severity note;
         else
           report "WBRWP: KO - Error write cycle fail" severity warning;
         end if;
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD/2;
         bench_sti_rxtx0_wb_cyc <= '0';
         bench_sti_rxtx0_wb_stb <= '0';
         bench_sti_rxtx0_wb_we <= '0';
@@ -1665,7 +2117,12 @@ architecture behaviour of ccsds_rxtx_bench is
           bench_sti_rxtx0_wb_dat <= bench_sti_rxtx0_wb_random_dat;
           bench_sti_rxtx0_wb_cyc <= '1';
           bench_sti_rxtx0_wb_stb <= '1';
-          wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*1.5;
+          wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
+          bench_sti_rxtx0_wb_we <= '0';
+          bench_sti_rxtx0_wb_adr <= "0000";
+          bench_sti_rxtx0_wb_dat <= (others => '0');
+          bench_sti_rxtx0_wb_cyc <= '0';
+          bench_sti_rxtx0_wb_stb <= '0';
           if (bench_res_rxtx0_wb_ack = '0') or (bench_res_rxtx0_wb_err = '1') or (bench_res_rxtx0_wb_rty = '1') then
             report "WBRWP: KO - TX write cycle fail: ACK=" & std_logic'image(bench_res_rxtx0_wb_ack) & " ERR=" & std_logic'image(bench_res_rxtx0_wb_err) & " RTY=" & std_logic'image(bench_res_rxtx0_wb_rty) severity warning;
           else
@@ -1673,7 +2130,7 @@ architecture behaviour of ccsds_rxtx_bench is
               report "WBRWP: OK - Many TX write cycles terminated with success" severity note;
             end if;
           end if;
-          wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD/2;
+          wait for (CCSDS_RXTX_BENCH_RXTX0_WB_WRITE_CYCLES_MAX-1)*CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
         end loop;
         bench_sti_rxtx0_wb_cyc <= '0';
         bench_sti_rxtx0_wb_stb <= '0';
@@ -1687,13 +2144,12 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_rxtx0_wb_dat <= "00000000000000000000000000000011";
         bench_sti_rxtx0_wb_cyc <= '1';
         bench_sti_rxtx0_wb_stb <= '1';
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*1.5;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
         if (bench_res_rxtx0_wb_ack = '1') and (bench_res_rxtx0_wb_err = '0') and (bench_res_rxtx0_wb_rty = '0') then
           report "WBRWP: OK - Basic configuration write cycle success (TX enabled + external serial data input activated)" severity note;
         else
           report "WBRWP: KO - Basic configuration write cycle fail" severity warning;
         end if;
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD/2;
         bench_sti_rxtx0_wb_cyc <= '0';
         bench_sti_rxtx0_wb_stb <= '0';
         bench_sti_rxtx0_wb_we <= '0';

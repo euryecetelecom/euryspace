@@ -86,7 +86,6 @@ module orpsoc_top #(
 	input	 ccsds_rxtx0_rx_clk_i,
 	output ccsds_rxtx0_rx_ena_o,
 	input	 ccsds_rxtx0_tx_dat_ser_i,
-	input	 ccsds_rxtx0_tx_clk_i,
 	output [EURYSPACE_CCSDS_RXTX0_TX_SAM_WIDTH-1:0]	ccsds_rxtx0_tx_sam_i_o,
 	output [EURYSPACE_CCSDS_RXTX0_TX_SAM_WIDTH-1:0]	ccsds_rxtx0_tx_sam_q_o,
 	output ccsds_rxtx0_tx_clk_o,
@@ -113,6 +112,7 @@ wire	wb_clk, wb_rst;
 wire	dbg_tck;
 wire	sdram_clk;
 wire	sdram_rst;
+wire  tx_clk;
 
 assign	sdram_clk_pad_o = sdram_clk;
 
@@ -121,6 +121,7 @@ clkgen clkgen0 (
 	.rst_n_pad_i	(rst_n_pad_i),
 	.async_rst_o	(async_rst),
 	.wb_clk_o	(wb_clk),
+	.tx_clk_o	(tx_clk),
 	.wb_rst_o	(wb_rst),
 `ifdef SIM
 	.tck_pad_i	(tck_pad_i),
@@ -620,7 +621,7 @@ ccsds_rxtx_top ccsds_rxtx_0 (
   .rx_irq_o		(ccsds_rxtx0_irq),
 	//TX
 	//Inputs
-	.tx_clk_i	(ccsds_rxtx0_tx_clk_i),
+	.tx_clk_i	(tx_clk),
 	.tx_dat_ser_i	(ccsds_rxtx0_tx_dat_ser_i),
 	//Outputs
 	.tx_sam_i_o (ccsds_rxtx0_tx_sam_i_o),

@@ -47,6 +47,9 @@ module clkgen
 	output	wb_clk_o,
 	output	wb_rst_o,
 
+  // TX clock
+	output	tx_clk_o,
+
 	// JTAG clock
 `ifdef SIM
 	input	tck_pad_i,
@@ -89,6 +92,7 @@ pll pll0
 	.inclk0	(sys_clk_pad_i),
 	.c0	(sdram_clk_o),
 	.c1	(wb_clk_o),
+	.c2	(tx_clk_o),
 	.locked	(pll_lock)
 );
 

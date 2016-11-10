@@ -74,7 +74,7 @@ entity ccsds_rxtx_top is
     rx_irq_o: out std_logic; -- interrupt request output
 -- TX connections
   -- tx inputs
-    tx_clk_i: in std_logic; -- direct data serial clock
+    tx_clk_i: in std_logic; -- output samples clock
     tx_dat_ser_i: in std_logic; -- direct data serial input
   -- tx outputs
     tx_clk_o: out std_logic; -- emitted samples clock
@@ -118,7 +118,7 @@ architecture structure of ccsds_rxtx_top is
       port(
         rst_i: in std_logic; -- system reset
         ena_i: in std_logic; -- system enable
-        clk_i: in std_logic; -- transmitted data clock
+        clk_i: in std_logic; -- transmitted samples clock (has to be coherent with data and symbol rate)
         in_sel_i: in std_logic; -- parallel / serial input selection
         dat_val_i: in std_logic; -- transmitted data valid signal
         dat_par_i: in std_logic_vector(CCSDS_TX_DATA_BUS_SIZE-1 downto 0); -- transmitted data parallel input
@@ -126,9 +126,6 @@ architecture structure of ccsds_rxtx_top is
         clk_o: out std_logic; -- output samples clock
         sam_i_o: out std_logic_vector(CCSDS_TX_PHYS_SIG_QUANT_DEPTH-1 downto 0); -- in-phased parallel complex samples
         sam_q_o: out std_logic_vector(CCSDS_TX_PHYS_SIG_QUANT_DEPTH-1 downto 0); -- quadrature-phased parallel complex samples
-        buf_dat_ful_o: out std_logic; -- data buffer status indicator / data received will be lost when indicating 1
-        buf_fra_ful_o: out std_logic; -- frames buffer status indicator / data received will be lost when indicating 1
-        buf_bit_ful_o: out std_logic; -- bits buffer status indicator / data received will be lost when indicating 1
         ena_o: out std_logic -- enabled status indicator
       );
     end component;
@@ -143,9 +140,6 @@ architecture structure of ccsds_rxtx_top is
     signal wire_tx_ena: std_logic := CCSDS_RXTX_CST_TX_AUTO_ENABLED;
     signal wire_tx_ext: std_logic := CCSDS_RXTX_CST_TX_AUTO_EXTERNAL;
     signal wire_tx_data_valid: std_logic := '0';
-    signal wire_tx_buffer_data_full: std_logic := '0';
-    signal wire_tx_buffer_frames_full: std_logic;
-    signal wire_tx_buffer_bits_full: std_logic;
     signal wire_rx_data: std_logic_vector(CCSDS_RXTX_CST_WB_DATA_BUS_SIZE-1 downto 0);
     signal wire_tx_data: std_logic_vector(CCSDS_RXTX_CST_WB_DATA_BUS_SIZE-1 downto 0) := (others => '0');
 
@@ -160,7 +154,7 @@ begin
         CCSDS_RX_DATA_BUS_SIZE => CCSDS_RXTX_CST_WB_DATA_BUS_SIZE
       )
       port map(
-        rst_i => wire_rst,
+        rst_i => wb_rst_i,
         ena_i => wire_rx_ena,
         clk_i => rx_clk_i,
         sam_i_i => rx_sam_i_i,
@@ -180,9 +174,9 @@ begin
         CCSDS_TX_DATA_BUS_SIZE => CCSDS_RXTX_CST_WB_DATA_BUS_SIZE
       )
       port map(
-        rst_i => wire_rst,
+        clk_i => tx_clk_i,
+        rst_i => wb_rst_i,
         ena_i => wire_tx_ena,
-        clk_i => wire_tx_clk,
         in_sel_i => wire_tx_ext,
         dat_val_i => wire_tx_data_valid,
         dat_par_i => wire_tx_data,
@@ -190,12 +184,8 @@ begin
         clk_o => tx_clk_o,
         sam_i_o => tx_sam_i_o,
         sam_q_o => tx_sam_q_o,
-        buf_dat_ful_o => wire_tx_buffer_data_full,
-        buf_fra_ful_o => wire_tx_buffer_frames_full,
-        buf_bit_ful_o => wire_tx_buffer_bits_full,
         ena_o => tx_ena_o
       );
-     
     --=============================================================================
     -- Begin of wbstartp
     -- In charge of wishbone bus interactions + rx/tx management through it
@@ -204,20 +194,17 @@ begin
     -- write: wb_ack_o, wb_err_o, wb_rty_o, (rx_/tx_XXX:rst_i), wb_dat_o, wire_rst, wire_irq, wire_rx_ena, wire_tx_ena
     -- r/w: wire_tx_ext
     WBSTARTP : process (wb_clk_i)
+    variable ack_state: std_logic := '0';
     -- variables instantiation
-    variable ccsds_rxtx_dyn_wb_state: integer range -1 to 2 := 0;
     begin
       -- on each wb clock rising edge
       if rising_edge(wb_clk_i) then
         -- wb reset signal received
         if (wb_rst_i = '1') then
-          -- send reset signal to all devices
-          wire_rst <= '1';
           -- reinitialize all dyn elements to default value
+          ack_state := '0';
           wire_rx_ena <= CCSDS_RXTX_CST_RX_AUTO_ENABLED;
           wire_tx_ena <= CCSDS_RXTX_CST_TX_AUTO_ENABLED;
-          wire_tx_data <= (others => '0');
-          ccsds_rxtx_dyn_wb_state := 0;
           -- reinitialize all outputs
           wire_tx_ext <= CCSDS_RXTX_CST_TX_AUTO_EXTERNAL;
  	        if (CCSDS_RXTX_CST_TX_AUTO_EXTERNAL = '0') then
@@ -225,93 +212,91 @@ begin
        	  else
        	    wire_tx_data_valid <= '1';
       	  end if;
+      	  wb_dat_o <= (others => '0');
           wb_ack_o <= '0';
           wb_err_o <= '0';
           wb_rty_o <= '0';
         else
-          wire_rst <= '0';
-          case ccsds_rxtx_dyn_wb_state is
-       	    -- error in bus cycle signaled
-            when -1 =>
-              wb_err_o <= '1';
-              wb_rty_o <= '1';
-      	      ccsds_rxtx_dyn_wb_state := 0;
-      	    -- waiting for instructions
-       	    when 0 =>
-              wb_ack_o <= '0';
-              wb_err_o <= '0';
-              wb_rty_o <= '0';
-              -- single classic standard read cycle
-              if ((wb_cyc_i = '1') and (wb_stb_i = '1') and (wb_we_i = '0')) then
-                if (wb_adr_i = "0000") then
-                  -- classic rx cycle - forward data from rx to master
-     	            ccsds_rxtx_dyn_wb_state := 1;
-  	              wb_dat_o <= wire_rx_data;
-       	        else
-        	        ccsds_rxtx_dyn_wb_state := -1;
-         	      end if;
-              else
-                wb_dat_o <= (others => '0');
-                -- single write cycle
-                if ((wb_cyc_i = '1') and (wb_stb_i = '1') and (wb_we_i = '1')) then
-                  -- classic tx cycle - store and forward data from master to tx
-                  if (wb_adr_i = "0000") then
-                    -- check internal configuration
-                    if (wire_tx_ext = '0') then
-                      if (wire_tx_buffer_data_full = '0') then
-                        ccsds_rxtx_dyn_wb_state := 1;
-                        wire_tx_data <= wb_dat_i;
-                        wire_tx_data_valid <= '1';
-                      else
-                        ccsds_rxtx_dyn_wb_state := -1;
-                      end if;
-                    else
-                      ccsds_rxtx_dyn_wb_state := -1;
-                    end if;
-                  -- RX configuration cycle - set general rx parameters
-                  elsif (wb_adr_i = "0001") then
-                    ccsds_rxtx_dyn_wb_state := 1;
-                    wire_rx_ena <= wb_dat_i(0);
-                  -- TX configuration cycle - set general tx parameters
-                  elsif (wb_adr_i = "0010") then
-                    ccsds_rxtx_dyn_wb_state := 1;
-                    wire_tx_ena <= wb_dat_i(0);
-                    wire_tx_ext <= wb_dat_i(1);
-                  else
-                    ccsds_rxtx_dyn_wb_state := -1;
-                  end if;
+          if (wb_cyc_i = '1') and (wb_stb_i = '1') then
+            -- single classic standard read cycle
+            if (wb_we_i = '0') then
+              if (wb_adr_i = "0000") then
+                -- classic rx cycle - forward data from rx to master
+                if (ack_state = '0') then
+                  wb_dat_o <= wire_rx_data;
+                  wb_ack_o <= '0';
+                  ack_state := '1';
+                else
+                  wb_dat_o <= (others => '0');
+                  wb_ack_o <= '1';
+                  ack_state := '0';
                 end if;
+   	          else
+                wb_err_o <= '1';
+                wb_rty_o <= '1';
        	      end if;
-            -- termination of normal bus cycle
-            when 1 =>
-              wb_ack_o <= '1';
-       	      ccsds_rxtx_dyn_wb_state := 0;
-      	      if (wire_tx_ext = '0') then
-       	        wire_tx_data_valid <= '0';
+            -- single write cycle
+            else
+              wb_dat_o <= (others => '0');
+              -- classic tx cycle - store and forward data from master to tx
+              if (wb_adr_i = "0000") then
+                -- check internal configuration
+                if (wire_tx_ext = '0') then
+                  if (ack_state = '0') then
+                    wb_ack_o <= '0';
+                    ack_state := '1';
+                    wire_tx_data <= wb_dat_i;
+                    wire_tx_data_valid <= '1';
+                  else
+                    wire_tx_data_valid <= '0';
+                    wb_ack_o <= '1';
+                    ack_state := '0';
+                  end if;
+                else
+                  wb_ack_o <= '0';
+                  wb_err_o <= '1';
+                  wb_rty_o <= '1';
+                end if;
+              -- RX configuration cycle - set general rx parameters
+              elsif (wb_adr_i = "0001") then
+                if (ack_state = '0') then
+                  wire_rx_ena <= wb_dat_i(0);
+                  wb_ack_o <= '0';
+                  ack_state := '1';
+                else
+                  wb_ack_o <= '1';
+                  ack_state := '0';
+                end if;
+                -- TX configuration cycle - set general tx parameters
+              elsif (wb_adr_i = "0010") then
+                if (ack_state = '0') then
+                  wire_tx_ena <= wb_dat_i(0);
+                  wire_tx_ext <= wb_dat_i(1);
+                  wb_ack_o <= '0';
+                  ack_state := '1';
+                else
+                  wb_ack_o <= '1';
+                  ack_state := '0';
+                end if;
               else
-       	        wire_tx_data_valid <= '1';
-      	      end if;
-       	    when others =>
-       	      ccsds_rxtx_dyn_wb_state := -1;
-          end case;
-        end if;
-      end if;
-    end process;
-
-    --=============================================================================
-    -- Begin of clkp
-    -- In charge of clock management
-    --=============================================================================
-    -- read: wb_clk_i, tx_clk_i
-    -- write: wire_tx_clk
-    -- r/w: 
-    CLKP : process (wb_clk_i, tx_clk_i, wire_tx_ext)
-    begin
---FIXME:TX clock external / pb synchro possible?? to be validated in silicon
-      if (wire_tx_ext = '0') then
-        wire_tx_clk <= wb_clk_i;
-      else
-        wire_tx_clk <= tx_clk_i;
+                wb_ack_o <= '0';
+                wb_err_o <= '1';
+                wb_rty_o <= '1';
+       	      end if;
+       	    end if;
+       	  else
+            wb_dat_o <= (others => '0');
+            wb_ack_o <= '0';
+            wb_err_o <= '0';
+            wb_rty_o <= '0';
+            ack_state := '0';
+            if (wire_tx_ext = '0') then
+              wire_tx_data_valid <= '0';
+            else
+              wire_tx_data_valid <= '1';
+            end if;
+          end if;
+     	  end if;
       end if;
     end process;
 end structure;

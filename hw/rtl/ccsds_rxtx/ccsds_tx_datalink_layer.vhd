@@ -28,20 +28,18 @@ entity ccsds_tx_datalink_layer is
   generic (
     constant CCSDS_TX_DATALINK_ASM_LENGTH: integer := 4; -- Attached Synchronization Marker length / in Bytes
     constant CCSDS_TX_DATALINK_DATA_BUS_SIZE: integer := 32; -- in bits
-    constant CCSDS_TX_DATALINK_DATA_LENGTH: integer := 24; -- datagram data size (Bytes) / (has to be a multiple of CCSDS_TX_DATALINK_DATA_BUS_SIZE)
+    constant CCSDS_TX_DATALINK_DATA_LENGTH: integer := 12; -- datagram data size (Bytes) / (has to be a multiple of CCSDS_TX_DATALINK_DATA_BUS_SIZE)
     constant CCSDS_TX_DATALINK_FOOTER_LENGTH: integer := 2; -- datagram footer length (Bytes)
     constant CCSDS_TX_DATALINK_HEADER_LENGTH: integer := 6 -- datagram header length (Bytes)
   );
   port(
     -- inputs
-    clk_i: in std_logic;
+    clk_bit_i: in std_logic;
+    clk_dat_i: in std_logic;
     dat_i: in std_logic_vector(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
     dat_val_i: in std_logic;
     rst_i: in std_logic;
     -- outputs
-    buf_bit_ful_o: out std_logic;
-    buf_dat_ful_o: out std_logic;
-    buf_fra_ful_o: out std_logic;
     dat_o: out std_logic_vector(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
     dat_val_o: out std_logic
   );
@@ -83,11 +81,13 @@ architecture structure of ccsds_tx_datalink_layer is
   end component;
 
 -- internal constants
+  constant FRAME_OUTPUT_SIZE: integer := (CCSDS_TX_DATALINK_DATA_LENGTH+CCSDS_TX_DATALINK_HEADER_LENGTH+CCSDS_TX_DATALINK_FOOTER_LENGTH+CCSDS_TX_DATALINK_ASM_LENGTH)*8;
+  constant FRAME_OUTPUT_WORDS: integer := FRAME_OUTPUT_SIZE/CCSDS_TX_DATALINK_DATA_BUS_SIZE;
 
 -- interconnection signals
   signal wire_framer_data: std_logic_vector((CCSDS_TX_DATALINK_DATA_LENGTH+CCSDS_TX_DATALINK_HEADER_LENGTH+CCSDS_TX_DATALINK_FOOTER_LENGTH)*8-1 downto 0);
   signal wire_framer_data_valid: std_logic;
-  signal wire_coder_data: std_logic_vector((CCSDS_TX_DATALINK_DATA_LENGTH+CCSDS_TX_DATALINK_HEADER_LENGTH+CCSDS_TX_DATALINK_FOOTER_LENGTH+CCSDS_TX_DATALINK_ASM_LENGTH)*8-1 downto 0);
+  signal wire_coder_data: std_logic_vector(FRAME_OUTPUT_SIZE-1 downto 0);
   signal wire_coder_data_valid: std_logic;
 
 -- components instanciation and mapping
@@ -101,7 +101,7 @@ architecture structure of ccsds_tx_datalink_layer is
       CCSDS_TX_FRAMER_DATA_BUS_SIZE => CCSDS_TX_DATALINK_DATA_BUS_SIZE
     )
     port map(
-      clk_i => clk_i,
+      clk_i => clk_dat_i,
       rst_i => rst_i,
       dat_val_i => dat_val_i,
       dat_i => dat_i,
@@ -114,17 +114,51 @@ architecture structure of ccsds_tx_datalink_layer is
       CCSDS_TX_CODER_DATA_BUS_SIZE => (CCSDS_TX_DATALINK_DATA_LENGTH+CCSDS_TX_DATALINK_HEADER_LENGTH+CCSDS_TX_DATALINK_FOOTER_LENGTH)*8
     )
     port map(
-      clk_i => clk_i,
+      clk_i => clk_dat_i,
       dat_i => wire_framer_data,
       dat_val_i => wire_framer_data_valid,
       rst_i => rst_i,
       dat_val_o => wire_coder_data_valid,
       dat_o => wire_coder_data
     );
-    
-  buf_dat_ful_o <= '0';
-  dat_val_o <= wire_coder_data_valid;
-  dat_o <= wire_coder_data(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
--- internal processing
 
+-- presynthesis checks
+-- internal processing
+    --=============================================================================
+    -- Begin of bitsoutputp
+    -- Generate valid bits output word by word on coder data_valid signal
+    --=============================================================================
+    -- read: rst_i, wire_coder_data, wire_coder_data_valid
+    -- write: dat_o, dat_val_o
+    -- r/w: 
+    BITSOUTPUTP: process (clk_bit_i)
+    variable next_word_pointer : integer range 0 to FRAME_OUTPUT_WORDS := FRAME_OUTPUT_WORDS - 1;
+    variable current_frame: std_logic_vector(FRAME_OUTPUT_SIZE-CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0) := (others => '0');
+    begin
+      -- on each clock rising edge
+      if rising_edge(clk_bit_i) then
+        -- reset signal received
+        if (rst_i = '1') then
+          next_word_pointer := FRAME_OUTPUT_WORDS - 1;
+          dat_o <= (others => '0');
+          dat_val_o <= '0';
+        else
+          -- generating valid bits output words
+          if (next_word_pointer = FRAME_OUTPUT_WORDS - 1) then
+            current_frame := wire_coder_data(FRAME_OUTPUT_SIZE-CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
+            dat_o <= wire_coder_data(FRAME_OUTPUT_SIZE-1 downto FRAME_OUTPUT_SIZE-CCSDS_TX_DATALINK_DATA_BUS_SIZE);
+            next_word_pointer := FRAME_OUTPUT_WORDS - 2;
+            dat_val_o <= '1';
+          else
+            dat_val_o <= '1';
+            dat_o <= current_frame((next_word_pointer+1)*CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto next_word_pointer*CCSDS_TX_DATALINK_DATA_BUS_SIZE);
+            if (next_word_pointer = 0) then
+              next_word_pointer := FRAME_OUTPUT_WORDS - 1;
+            else
+              next_word_pointer := next_word_pointer - 1;
+            end if;
+          end if;
+        end if;
+      end if;
+    end process;
 end structure;
