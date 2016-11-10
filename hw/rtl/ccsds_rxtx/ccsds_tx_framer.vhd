@@ -36,7 +36,7 @@ entity ccsds_tx_framer is
     constant CCSDS_TX_FRAMER_DATA_LENGTH: integer; -- in Bytes
     constant CCSDS_TX_FRAMER_FOOTER_LENGTH: integer; -- in Bytes
     constant CCSDS_TX_FRAMER_HEADER_LENGTH: integer; -- in Bytes
-    constant CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO: integer := 8 -- activated max framer parallelism speed ratio / 1 = full speed / 2 = wishbone bus max speed / ... / 32 = external serial data
+    constant CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO: integer := 16 -- activated max framer parallelism speed ratio / 1 = full speed / 2 = wishbone bus max speed / ... / 32 = external serial data
   );
   port(
     -- inputs
