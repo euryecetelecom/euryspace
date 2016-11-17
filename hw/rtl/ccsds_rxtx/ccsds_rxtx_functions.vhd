@@ -14,6 +14,7 @@
 ---- Changes list:
 ---- 2015/12/28: initial release
 ---- 2016/10/20: added reverse_std_logic_vector function + rework sim_generate_random_std_logic_vector for > 32 bits vectors
+---- 2016/11/17: added convert_boolean_to_std_logic function
 -------------------------------
 
 -- libraries used
@@ -24,6 +25,7 @@ use ieee.math_real.all;
 
 package ccsds_rxtx_functions is
 -- synthetizable functions
+  function convert_boolean_to_std_logic(input: in boolean) return std_logic;
   function reverse_std_logic_vector (input: in std_logic_vector) return std_logic_vector;
 -- simulation / testbench only functions
   procedure sim_generate_random_std_logic_vector(vector_size : in integer; seed1 : inout positive; seed2 : inout positive; result : out std_logic_vector);
@@ -31,6 +33,15 @@ end ccsds_rxtx_functions;
 
 package body ccsds_rxtx_functions is
 
+  function convert_boolean_to_std_logic(input: in boolean) return std_logic is
+  begin
+    if (input = true) then
+      return '1';
+    else
+      return '0';
+    end if;
+  end convert_boolean_to_std_logic;
+  
   function reverse_std_logic_vector (input: in std_logic_vector) return std_logic_vector is
   variable result: std_logic_vector(input'RANGE);
   alias output: std_logic_vector(input'REVERSE_RANGE) is input;

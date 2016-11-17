@@ -46,7 +46,7 @@ entity ccsds_rxtx_bench is
     CCSDS_RXTX_BENCH_RXTX0_TX_PHYS_SIG_QUANT_DEPTH: integer := TX_PHYS_SIG_QUANT_DEPTH;
     CCSDS_RXTX_BENCH_RXTX0_WB_ADDR_BUS_SIZE: integer := RXTX_SYSTEM_WB_ADDR_BUS_SIZE;
     CCSDS_RXTX_BENCH_RXTX0_WB_DATA_BUS_SIZE: integer := RXTX_SYSTEM_WB_DATA_BUS_SIZE;
-    CCSDS_RXTX_BENCH_RXTX0_WB_WRITE_CYCLES_MAX: integer := 16;
+    CCSDS_RXTX_BENCH_RXTX0_WB_WRITE_CYCLES_MAX: integer := 8;
     -- sub-systems parameters
     -- BUFFER
     CCSDS_RXTX_BENCH_BUFFER0_DATA_BUS_SIZE : integer := 32;
@@ -64,7 +64,8 @@ entity ccsds_rxtx_bench is
     CCSDS_RXTX_BENCH_CRC0_XOR: std_logic_vector := x"0000";
     -- FILTER
     CCSDS_RXTX_BENCH_FILTER0_MAPPER_DATA_BUS_SIZE: integer := 32;
-    CCSDS_RXTX_BENCH_FILTER0_OFFSET_PSK: std_logic := '1';
+    CCSDS_RXTX_BENCH_FILTER0_MAPPER_DIFFERENTIAL_CODER: boolean := false;
+    CCSDS_RXTX_BENCH_FILTER0_OFFSET_PSK: boolean := true;
     CCSDS_RXTX_BENCH_FILTER0_OVERSAMPLING_RATIO: integer := 4;
     CCSDS_RXTX_BENCH_FILTER0_ROLL_OFF: real := 0.5;
     CCSDS_RXTX_BENCH_FILTER0_SIG_QUANT_DEPTH: integer := 16;
@@ -83,8 +84,9 @@ entity ccsds_rxtx_bench is
 		CCSDS_RXTX_BENCH_LFSR0_POLYNOMIAL: std_logic_vector	:= x"A9";
 		CCSDS_RXTX_BENCH_LFSR0_SEED: std_logic_vector	:= x"FF";
 		-- MAPPER
-		CCSDS_RXTX_BENCH_MAPPER0_BITS_PER_SYMBOL: integer := 1;
+		CCSDS_RXTX_BENCH_MAPPER0_BITS_PER_SYMBOL: integer := 2;
 		CCSDS_RXTX_BENCH_MAPPER0_DATA_BUS_SIZE: integer := 32;
+    CCSDS_RXTX_BENCH_MAPPER0_DIFFERENTIAL_CODER: boolean := true;
     CCSDS_RXTX_BENCH_MAPPER0_MODULATION_TYPE: integer := 1;
     -- SERDES
     CCSDS_RXTX_BENCH_SERDES0_DEPTH: integer := 32;
@@ -106,6 +108,7 @@ entity ccsds_rxtx_bench is
     CCSDS_RXTX_BENCH_MAPPER0_CLK_PERIOD: time := 10 ns;
     CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD: time := 20 ns;
     CCSDS_RXTX_BENCH_RXTX0_WB_TX_WRITE_CYCLE_NUMBER: integer := 5000;
+    CCSDS_RXTX_BENCH_RXTX0_WB_TX_OVERFLOW: boolean := true;
     CCSDS_RXTX_BENCH_SEED: integer := 123456789;
     CCSDS_RXTX_BENCH_SERDES0_CLK_PERIOD: time := 10 ns;
     CCSDS_RXTX_BENCH_SERDES0_CYCLES_NUMBER: integer := 25;
@@ -163,7 +166,7 @@ architecture behaviour of ccsds_rxtx_bench is
       clk_i: in std_logic;
       dat_i: in std_logic_vector(CCSDS_RXTX_BUFFER_DATA_BUS_SIZE-1 downto 0);
       dat_val_i: in std_logic;
-      nxt_dat_i: in std_logic;
+      dat_nxt_i: in std_logic;
       rst_i: in std_logic;
       buf_emp_o: out std_logic;
       buf_ful_o: out std_logic;
@@ -198,7 +201,7 @@ architecture behaviour of ccsds_rxtx_bench is
   end component;
   component ccsds_tx_filter is
     generic(
-      CCSDS_TX_FILTER_OFFSET_PSK: std_logic;
+      CCSDS_TX_FILTER_OFFSET_PSK: boolean;
       CCSDS_TX_FILTER_OVERSAMPLING_RATIO: integer;
       CCSDS_TX_FILTER_SIG_QUANT_DEPTH: integer;
       CCSDS_TX_FILTER_MODULATION_TYPE: integer;
@@ -229,7 +232,9 @@ architecture behaviour of ccsds_rxtx_bench is
       dat_i: in std_logic_vector(CCSDS_TX_FRAMER_DATA_BUS_SIZE-1 downto 0);
       dat_val_i: in std_logic;
       dat_o: out std_logic_vector((CCSDS_TX_FRAMER_HEADER_LENGTH+CCSDS_TX_FRAMER_FOOTER_LENGTH+CCSDS_TX_FRAMER_DATA_LENGTH)*8-1 downto 0);
-      dat_val_o: out std_logic
+      dat_val_o: out std_logic;
+      dat_nxt_o: out std_logic;
+      idl_o: out std_logic
     );
   end component;
   component ccsds_rxtx_lfsr is
@@ -250,6 +255,7 @@ architecture behaviour of ccsds_rxtx_bench is
   component ccsds_tx_mapper is
     generic(
       CCSDS_TX_MAPPER_DATA_BUS_SIZE: integer;
+      CCSDS_TX_MAPPER_DIFFERENTIAL_CODER: boolean;
       CCSDS_TX_MAPPER_MODULATION_TYPE: integer;
       CCSDS_TX_MAPPER_BITS_PER_SYMBOL: integer
     );
@@ -302,7 +308,7 @@ architecture behaviour of ccsds_rxtx_bench is
   constant CCSDS_RXTX_BENCH_FILTER0_MAPPER_CLK_PERIOD: time := CCSDS_RXTX_BENCH_FILTER0_CLK_PERIOD*CCSDS_RXTX_BENCH_FILTER0_OVERSAMPLING_RATIO;
   constant CCSDS_RXTX_BENCH_FILTER0_MAPPER_DATA_CLK_PERIOD: time := CCSDS_RXTX_BENCH_FILTER0_MAPPER_CLK_PERIOD * CCSDS_RXTX_BENCH_FILTER0_MAPPER_DATA_BUS_SIZE * CCSDS_RXTX_BENCH_FILTER0_MODULATION_TYPE / (CCSDS_RXTX_BENCH_FILTER0_BITS_PER_SYMBOL * 2);
   constant CCSDS_RXTX_BENCH_MAPPER0_DATA_CLK_PERIOD: time := CCSDS_RXTX_BENCH_MAPPER0_CLK_PERIOD * CCSDS_RXTX_BENCH_MAPPER0_DATA_BUS_SIZE * CCSDS_RXTX_BENCH_MAPPER0_MODULATION_TYPE / (CCSDS_RXTX_BENCH_MAPPER0_BITS_PER_SYMBOL * 2);
-  constant CCSDS_RXTX_BENCH_RXTX0_TX_CLK_PERIOD: time := CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD/4;
+  constant CCSDS_RXTX_BENCH_RXTX0_TX_CLK_PERIOD: time := CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD/8;
   constant CCSDS_RXTX_BENCH_RXTX0_RX_CLK_PERIOD: time := CCSDS_RXTX_BENCH_RXTX0_TX_CLK_PERIOD;
 -- internal variables
   signal bench_ena_buffer0_random_data: std_logic := '0';
@@ -427,6 +433,8 @@ architecture behaviour of ccsds_rxtx_bench is
   signal bench_res_filter0_srrc_sam_q_val: std_logic;
   -- framer
   signal bench_res_framer0_data_valid: std_logic;
+  signal bench_res_framer0_dat_nxt: std_logic;
+  signal bench_res_framer0_idl: std_logic;
   signal bench_res_framer0_data: std_logic_vector((CCSDS_RXTX_BENCH_FRAMER0_HEADER_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH)*8-1 downto 0);
   -- lfsr
   signal bench_res_lfsr0_data_valid: std_logic;
@@ -491,7 +499,7 @@ architecture behaviour of ccsds_rxtx_bench is
         dat_val_o => bench_res_buffer0_data_valid,
         buf_emp_o => bench_res_buffer0_buffer_empty,
         buf_ful_o => bench_res_buffer0_buffer_full,
-        nxt_dat_i => bench_sti_buffer0_next_data,
+        dat_nxt_i => bench_sti_buffer0_next_data,
         dat_o => bench_res_buffer0_data
       );
     crc_000: ccsds_rxtx_crc
@@ -598,7 +606,9 @@ architecture behaviour of ccsds_rxtx_bench is
         dat_val_i => bench_sti_framer0_data_valid,
         dat_i => bench_sti_framer0_data,
         dat_val_o => bench_res_framer0_data_valid,
-        dat_o => bench_res_framer0_data
+        dat_o => bench_res_framer0_data,
+        dat_nxt_o => bench_res_framer0_dat_nxt,
+        idl_o => bench_res_framer0_idl
       );
     lfsr_000: ccsds_rxtx_lfsr
       generic map(
@@ -618,6 +628,7 @@ architecture behaviour of ccsds_rxtx_bench is
       generic map(
         CCSDS_TX_MAPPER_DATA_BUS_SIZE => CCSDS_RXTX_BENCH_MAPPER0_DATA_BUS_SIZE,
         CCSDS_TX_MAPPER_MODULATION_TYPE => CCSDS_RXTX_BENCH_MAPPER0_MODULATION_TYPE,
+        CCSDS_TX_MAPPER_DIFFERENTIAL_CODER => CCSDS_RXTX_BENCH_MAPPER0_DIFFERENTIAL_CODER,
         CCSDS_TX_MAPPER_BITS_PER_SYMBOL => CCSDS_RXTX_BENCH_MAPPER0_BITS_PER_SYMBOL
       )
       port map(
@@ -633,7 +644,8 @@ architecture behaviour of ccsds_rxtx_bench is
       generic map(
         CCSDS_TX_MAPPER_DATA_BUS_SIZE => CCSDS_RXTX_BENCH_FILTER0_MAPPER_DATA_BUS_SIZE,
         CCSDS_TX_MAPPER_MODULATION_TYPE => CCSDS_RXTX_BENCH_FILTER0_MODULATION_TYPE,
-        CCSDS_TX_MAPPER_BITS_PER_SYMBOL => CCSDS_RXTX_BENCH_FILTER0_BITS_PER_SYMBOL
+        CCSDS_TX_MAPPER_BITS_PER_SYMBOL => CCSDS_RXTX_BENCH_FILTER0_BITS_PER_SYMBOL,
+        CCSDS_TX_MAPPER_DIFFERENTIAL_CODER => CCSDS_RXTX_BENCH_FILTER0_MAPPER_DIFFERENTIAL_CODER
       )
       port map(
         clk_i => bench_sti_filter0_mapper_clk,
@@ -1450,12 +1462,17 @@ architecture behaviour of ccsds_rxtx_bench is
         end if;
         if bench_res_framer0_data_valid = '1' then
           if (bench_res_framer0_data((CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH)*8+10 downto (CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH)*8) = "11111111110") then
-            report "FRAMERP: OK - Default state - Output frame is valid and Only Idle Data flag found" severity note;
+            report "FRAMERP: OK - Initial state - Output frame is valid and Only Idle Data flag found" severity note;
           else
-            report "FRAMERP: KO - Default state - Output frame is valid without sent data - Only Idle Flag not found" severity warning;
+            report "FRAMERP: KO - Initial state - Output frame is valid without sent data - Only Idle Flag not found" severity warning;
           end if;
         else
-          report "FRAMERP: KO - Default state - Output frame is not valid without sent data" severity warning;
+          report "FRAMERP: KO - Initial state - Output frame is not valid without sent data" severity warning;
+        end if;
+        if (bench_res_framer0_dat_nxt = '0') then
+          report "FRAMERP: KO - Initial state - Next data not requested" severity warning;
+        else
+          report "FRAMERP: OK - Initial state - Next data requested" severity note;
         end if;
       -- behaviour tests:
         -- align the end of data to the beginning of a new frame processing cycle
@@ -1560,9 +1577,26 @@ architecture behaviour of ccsds_rxtx_bench is
           end if;
         end loop;
         bench_sti_framer0_data_valid <= '0';
-        bench_ena_framer0_random_data <= '0';
         -- wait for last frame to be processed and presented
         wait for CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD*(FRAME_REPETITION_CYCLES*(((FRAME_PROCESSING_CYCLES_REQUIRED+1)/FRAME_REPETITION_CYCLES)+4));
+        -- send data continuously to test full-speed / overflow behaviour
+        bench_sti_framer0_data_valid <= '1';
+        wait for (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO*CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO*CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH*8/CCSDS_RXTX_BENCH_FRAMER0_DATA_BUS_SIZE)*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD;
+        if (CCSDS_RXTX_BENCH_FRAMER0_PARALLELISM_MAX_RATIO /= 1) then
+          if (bench_res_framer0_dat_nxt = '0') then
+            report "FRAMERP: OK - Overflow stop next data request" severity note;
+          else
+            report "FRAMERP: KO - Overflow doesn't stop next data request" severity warning;
+          end if;
+        else
+          if (bench_res_framer0_dat_nxt = '1') then
+            report "FRAMERP: OK - Full speed doesn't stop next data request" severity note;
+          else
+            report "FRAMERP: KO - Full speed stop next data request" severity warning;
+          end if;
+        end if;
+        bench_sti_framer0_data_valid <= '0';
+        bench_ena_framer0_random_data <= '0';
       -- final state tests:
         if bench_res_framer0_data_valid = '1' then
           if (bench_res_framer0_data((CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH)*8+10 downto (CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH)*8) = "11111111110") then
@@ -1572,6 +1606,11 @@ architecture behaviour of ccsds_rxtx_bench is
           end if;
         else
           report "FRAMERP: KO - Final state - Output frame is not valid without sent data" severity warning;
+        end if;
+        if (bench_res_framer0_dat_nxt = '0') then
+          report "FRAMERP: KO - Final state - Next data not requested" severity warning;
+        else
+          report "FRAMERP: OK - Final state - Next data requested" severity note;
         end if;
         report "FRAMERP: END FRAMER TESTS" severity note;
       -- do nothing
@@ -1628,7 +1667,7 @@ architecture behaviour of ccsds_rxtx_bench is
       -- behaviour tests:
         report "MAPPERP: START MAPPER TESTS" severity note;
         bench_ena_mapper0_random_data <= '1';
-        wait for CCSDS_RXTX_BENCH_MAPPER0_CLK_PERIOD;
+        wait for CCSDS_RXTX_BENCH_MAPPER0_DATA_CLK_PERIOD;
         bench_sti_mapper0_dat_val <= '1';
       -- final state tests:
         report "MAPPERP: END MAPPER TESTS" severity note;
@@ -1947,6 +1986,7 @@ architecture behaviour of ccsds_rxtx_bench is
     -- write: bench_sti_rxtx0_wb_adr0, bench_sti_rxtx0_wb_cyc0, bench_sti_rxtx0_wb_stb0, bench_sti_rxtx0_wb_we0, bench_sti_rxtx0_wb_dat0, bench_ena_rxtx0_random_data
     -- r/w: 
     WBRWP : process
+    variable output_done: boolean := false;
       begin
       -- let the system free run
         wait for (CCSDS_RXTX_BENCH_START_FREE_RUN_DURATION/2);
@@ -1993,12 +2033,13 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_rxtx0_wb_adr <= "0000";
         bench_sti_rxtx0_wb_cyc <= '1';
         bench_sti_rxtx0_wb_stb <= '1';
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;
         if (bench_res_rxtx0_wb_ack = '1') and (bench_res_rxtx0_wb_err = '0') and (bench_res_rxtx0_wb_rty = '0') then
           report "WBRWP: OK - RX read cycle success" severity note;
         else
           report "WBRWP: KO - RX read cycle fail" severity warning;
         end if;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;
         bench_sti_rxtx0_wb_cyc <= '0';
         bench_sti_rxtx0_wb_stb <= '0';
         bench_sti_rxtx0_wb_we <= '0';
@@ -2009,12 +2050,13 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_rxtx0_wb_adr <= "0001";
         bench_sti_rxtx0_wb_cyc <= '1';
         bench_sti_rxtx0_wb_stb <= '1';
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;
         if (bench_res_rxtx0_wb_ack = '0') and (bench_res_rxtx0_wb_err = '1') and (bench_res_rxtx0_wb_rty = '1') then
           report "WBRWP: OK - Error read cycle success" severity note;
         else
           report "WBRWP: KO - Error read cycle fail" severity warning;
         end if;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;
         bench_sti_rxtx0_wb_cyc <= '0';
         bench_sti_rxtx0_wb_stb <= '0';
         bench_sti_rxtx0_wb_we <= '0';
@@ -2027,12 +2069,13 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_rxtx0_wb_dat <= (others => '0');
         bench_sti_rxtx0_wb_cyc <= '1';
         bench_sti_rxtx0_wb_stb <= '1';
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;
         if (bench_res_rxtx0_wb_ack = '1') and (bench_res_rxtx0_wb_err = '0') and (bench_res_rxtx0_wb_rty = '0') then
           report "WBRWP: OK - RXTX configuration write cycle success (RX disabled)" severity note;
         else
           report "WBRWP: KO - RXTX configuration write cycle fail" severity warning;
         end if;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;
         bench_sti_rxtx0_wb_cyc <= '0';
         bench_sti_rxtx0_wb_stb <= '0';
         bench_sti_rxtx0_wb_we <= '0';
@@ -2045,7 +2088,7 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_rxtx0_wb_dat <= (others => '0');
         bench_sti_rxtx0_wb_cyc <= '1';
         bench_sti_rxtx0_wb_stb <= '1';
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;
         if (bench_res_rxtx0_wb_ack = '1') and (bench_res_rxtx0_wb_err = '0') and (bench_res_rxtx0_wb_rty = '0') then
           report "WBRWP: OK - RXTX configuration write cycle success (TX disabled)" severity note;
         else
@@ -2063,12 +2106,13 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_rxtx0_wb_dat <= "00000000000000000000000000000001";
         bench_sti_rxtx0_wb_cyc <= '1';
         bench_sti_rxtx0_wb_stb <= '1';
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;
         if (bench_res_rxtx0_wb_ack = '1') and (bench_res_rxtx0_wb_err = '0') and (bench_res_rxtx0_wb_rty = '0') then
           report "WBRWP: OK - RXTX configuration write cycle success (TX enabled + internal WB data use)" severity note;
         else
           report "WBRWP: KO - RXTX configuration write cycle fail" severity warning;
         end if;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;
         bench_sti_rxtx0_wb_cyc <= '0';
         bench_sti_rxtx0_wb_stb <= '0';
         bench_sti_rxtx0_wb_we <= '0';
@@ -2081,7 +2125,7 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_rxtx0_wb_dat <= bench_sti_rxtx0_wb_random_dat;
         bench_sti_rxtx0_wb_cyc <= '1';
         bench_sti_rxtx0_wb_stb <= '1';
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;
         if (bench_res_rxtx0_wb_ack = '1') and (bench_res_rxtx0_wb_err = '0') and (bench_res_rxtx0_wb_rty = '0') then
           report "WBRWP: OK - TX write cycle success" severity note;
         else
@@ -2099,12 +2143,13 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_rxtx0_wb_dat <= bench_sti_rxtx0_wb_random_dat;
         bench_sti_rxtx0_wb_cyc <= '1';
         bench_sti_rxtx0_wb_stb <= '1';
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;
         if (bench_res_rxtx0_wb_ack = '0') and (bench_res_rxtx0_wb_err = '1') and (bench_res_rxtx0_wb_rty = '1') then
           report "WBRWP: OK - Error write cycle success" severity note;
         else
           report "WBRWP: KO - Error write cycle fail" severity warning;
         end if;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;
         bench_sti_rxtx0_wb_cyc <= '0';
         bench_sti_rxtx0_wb_stb <= '0';
         bench_sti_rxtx0_wb_we <= '0';
@@ -2117,20 +2162,31 @@ architecture behaviour of ccsds_rxtx_bench is
           bench_sti_rxtx0_wb_dat <= bench_sti_rxtx0_wb_random_dat;
           bench_sti_rxtx0_wb_cyc <= '1';
           bench_sti_rxtx0_wb_stb <= '1';
-          wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
+          wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;
           bench_sti_rxtx0_wb_we <= '0';
           bench_sti_rxtx0_wb_adr <= "0000";
           bench_sti_rxtx0_wb_dat <= (others => '0');
           bench_sti_rxtx0_wb_cyc <= '0';
           bench_sti_rxtx0_wb_stb <= '0';
           if (bench_res_rxtx0_wb_ack = '0') or (bench_res_rxtx0_wb_err = '1') or (bench_res_rxtx0_wb_rty = '1') then
-            report "WBRWP: KO - TX write cycle fail: ACK=" & std_logic'image(bench_res_rxtx0_wb_ack) & " ERR=" & std_logic'image(bench_res_rxtx0_wb_err) & " RTY=" & std_logic'image(bench_res_rxtx0_wb_rty) severity warning;
+            if (CCSDS_RXTX_BENCH_RXTX0_WB_TX_OVERFLOW = true) then
+              if (output_done = false) then
+                output_done := true;
+                report "WBRWP: OK - Many TX write cycles overflow appears after " & integer'image(i) & " WB write cycles (" & integer'image(i*CCSDS_RXTX_BENCH_RXTX0_WB_DATA_BUS_SIZE) & " bits max burst)" severity note;
+              end if;
+            else
+              report "WBRWP: KO - TX write cycle fail: ACK=" & std_logic'image(bench_res_rxtx0_wb_ack) & " ERR=" & std_logic'image(bench_res_rxtx0_wb_err) & " RTY=" & std_logic'image(bench_res_rxtx0_wb_rty) severity warning;
+            end if;
           else
             if (i = CCSDS_RXTX_BENCH_RXTX0_WB_TX_WRITE_CYCLE_NUMBER-1) then
               report "WBRWP: OK - Many TX write cycles terminated with success" severity note;
             end if;
           end if;
-          wait for (CCSDS_RXTX_BENCH_RXTX0_WB_WRITE_CYCLES_MAX-1)*CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
+          if (CCSDS_RXTX_BENCH_RXTX0_WB_TX_OVERFLOW = true) then
+            wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;          
+          else
+            wait for (CCSDS_RXTX_BENCH_RXTX0_WB_WRITE_CYCLES_MAX-1)*CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2 + CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;
+          end if;
         end loop;
         bench_sti_rxtx0_wb_cyc <= '0';
         bench_sti_rxtx0_wb_stb <= '0';
@@ -2144,12 +2200,13 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_rxtx0_wb_dat <= "00000000000000000000000000000011";
         bench_sti_rxtx0_wb_cyc <= '1';
         bench_sti_rxtx0_wb_stb <= '1';
-        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD*2;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;
         if (bench_res_rxtx0_wb_ack = '1') and (bench_res_rxtx0_wb_err = '0') and (bench_res_rxtx0_wb_rty = '0') then
           report "WBRWP: OK - Basic configuration write cycle success (TX enabled + external serial data input activated)" severity note;
         else
           report "WBRWP: KO - Basic configuration write cycle fail" severity warning;
         end if;
+        wait for CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD;
         bench_sti_rxtx0_wb_cyc <= '0';
         bench_sti_rxtx0_wb_stb <= '0';
         bench_sti_rxtx0_wb_we <= '0';

@@ -41,7 +41,9 @@ entity ccsds_tx_datalink_layer is
     rst_i: in std_logic;
     -- outputs
     dat_o: out std_logic_vector(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
-    dat_val_o: out std_logic
+    dat_nxt_o: out std_logic;
+    dat_val_o: out std_logic;
+    idl_o: out std_logic
   );
 end ccsds_tx_datalink_layer;
 
@@ -62,7 +64,9 @@ architecture structure of ccsds_tx_datalink_layer is
       dat_i: in std_logic_vector(CCSDS_TX_FRAMER_DATA_BUS_SIZE-1 downto 0);
       dat_val_i: in std_logic;
       dat_o: out std_logic_vector((CCSDS_TX_FRAMER_DATA_LENGTH+CCSDS_TX_FRAMER_HEADER_LENGTH+CCSDS_TX_FRAMER_FOOTER_LENGTH)*8-1 downto 0);
-      dat_val_o: out std_logic
+      dat_val_o: out std_logic;
+      dat_nxt_o: out std_logic;
+      idl_o: out std_logic
     );
   end component;
   component ccsds_tx_coder is
@@ -106,7 +110,9 @@ architecture structure of ccsds_tx_datalink_layer is
       dat_val_i => dat_val_i,
       dat_i => dat_i,
       dat_val_o => wire_framer_data_valid,
-      dat_o => wire_framer_data
+      dat_nxt_o => dat_nxt_o,
+      dat_o => wire_framer_data,
+      idl_o => idl_o
     );
   tx_datalink_coder_0: ccsds_tx_coder
     generic map(

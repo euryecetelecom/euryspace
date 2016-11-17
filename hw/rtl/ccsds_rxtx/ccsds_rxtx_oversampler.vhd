@@ -25,7 +25,7 @@ use ieee.std_logic_1164.all;
 entity ccsds_rxtx_oversampler is
   generic(
     constant CCSDS_RXTX_OVERSAMPLER_OVERSAMPLING_RATIO: integer := 4;
-    constant CCSDS_RXTX_OVERSAMPLER_SYMBOL_DEPHASING: std_logic := '0';
+    constant CCSDS_RXTX_OVERSAMPLER_SYMBOL_DEPHASING: boolean := false;
     constant CCSDS_RXTX_OVERSAMPLER_SIG_QUANT_DEPTH: integer
   );
   port(
@@ -83,7 +83,7 @@ architecture structure of ccsds_rxtx_oversampler is
         else
           if (sam_val_i = '1') then
             sam_val_o <= '1';
-            if (CCSDS_RXTX_OVERSAMPLER_SYMBOL_DEPHASING = '1') then
+            if (CCSDS_RXTX_OVERSAMPLER_SYMBOL_DEPHASING = true) then
               if (samples_counter <= 0) then
                 sam_o <= (others => '0');
                 samples_counter := CCSDS_RXTX_OVERSAMPLER_OVERSAMPLING_RATIO-1;

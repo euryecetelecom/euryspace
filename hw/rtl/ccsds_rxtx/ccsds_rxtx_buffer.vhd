@@ -36,8 +36,8 @@ entity ccsds_rxtx_buffer is
     -- inputs
     clk_i: in std_logic;
     dat_i: in std_logic_vector(CCSDS_RXTX_BUFFER_DATA_BUS_SIZE-1 downto 0);
+    dat_nxt_i: in std_logic;
     dat_val_i: in std_logic;
-    nxt_dat_i: in std_logic;
     rst_i: in std_logic;
     -- outputs
     buf_emp_o: out std_logic;
@@ -84,7 +84,7 @@ architecture rtl of ccsds_rxtx_buffer is
             dat_val_o <= '0';
           else
             buf_emp_o <= '0';
-            if (nxt_dat_i = '1') then
+            if (dat_nxt_i = '1') then
               dat_val_o <= '1';
               dat_o <= buffer_data(buffer_read_pos);
               if (buffer_read_pos < CCSDS_RXTX_BUFFER_SIZE) then

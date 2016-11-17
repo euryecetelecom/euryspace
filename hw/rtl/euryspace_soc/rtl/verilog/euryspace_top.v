@@ -78,6 +78,8 @@ module orpsoc_top #(
 `ifdef I2C0
 	inout	i2c0_sda_io,
 	inout	i2c0_scl_io,
+	output accelerometer_cs_o,
+	input accelerometer_irq_i,
 `endif
 
 `ifdef CCSDS_RXTX0
@@ -238,25 +240,30 @@ wire		or1k_rst;
 assign or1k_rst = wb_rst | or1k_dbg_rst;
 
 mor1kx #(
-	.FEATURE_DEBUGUNIT("ENABLED"),
+  // Base definition
+	.DBUS_WB_TYPE("B3_REGISTERED_FEEDBACK"),
+	.IBUS_WB_TYPE("B3_REGISTERED_FEEDBACK"),
+	.OPTION_CPU0("CAPPUCCINO"),
+	.OPTION_PIC_TRIGGER("LATCHED_LEVEL"),
+	.OPTION_RESET_PC(32'hf0000000),
+	// Options activated
 	.FEATURE_CMOV("ENABLED"),
-	.FEATURE_INSTRUCTIONCACHE("ENABLED"),
-	.OPTION_ICACHE_BLOCK_WIDTH(5),
-	.OPTION_ICACHE_SET_WIDTH(8),
-	.OPTION_ICACHE_WAYS(2),
-	.OPTION_ICACHE_LIMIT_WIDTH(32),
-	.FEATURE_IMMU("ENABLED"),
 	.FEATURE_DATACACHE("ENABLED"),
 	.OPTION_DCACHE_BLOCK_WIDTH(5),
 	.OPTION_DCACHE_SET_WIDTH(8),
 	.OPTION_DCACHE_WAYS(2),
 	.OPTION_DCACHE_LIMIT_WIDTH(31),
+	.FEATURE_DEBUGUNIT("ENABLED"),
 	.FEATURE_DMMU("ENABLED"),
-	.OPTION_PIC_TRIGGER("LATCHED_LEVEL"),
-	.IBUS_WB_TYPE("B3_REGISTERED_FEEDBACK"),
-	.DBUS_WB_TYPE("B3_REGISTERED_FEEDBACK"),
-	.OPTION_CPU0("CAPPUCCINO"),
-	.OPTION_RESET_PC(32'hf0000000)
+	.FEATURE_IMMU("ENABLED"),
+	.FEATURE_INSTRUCTIONCACHE("ENABLED"),
+	.OPTION_ICACHE_BLOCK_WIDTH(5),
+	.OPTION_ICACHE_SET_WIDTH(8),
+	.OPTION_ICACHE_WAYS(2),
+	.OPTION_ICACHE_LIMIT_WIDTH(32),
+	.FEATURE_FPU("NONE"),
+	.FEATURE_MAC("NONE"),
+	.FEATURE_MULTICORE("NONE")
 ) mor1kx0 (
 	.iwbm_adr_o(wb_m2s_or1k_i_adr),
 	.iwbm_stb_o(wb_m2s_or1k_i_stb),
@@ -571,6 +578,9 @@ i2c0
 
    );
 
+// choose I2C operation mode
+assign accelerometer_cs_o = 1;
+
 assign wb_s2m_i2c0_err = 0;
 assign wb_s2m_i2c0_rty = 0;
 
@@ -741,10 +751,11 @@ assign or1k_irq[8] = 0;
 assign or1k_irq[9] = 0;
 `ifdef I2C0
    assign or1k_irq[10] = i2c0_irq;
+   assign or1k_irq[11] = accelerometer_irq_i;
 `else
    assign or1k_irq[10] = 0;
+   assign or1k_irq[11] = 0;
 `endif
-assign or1k_irq[11] = 0;
 assign or1k_irq[12] = 0;
 assign or1k_irq[13] = 0;
 assign or1k_irq[14] = 0;

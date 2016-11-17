@@ -25,10 +25,10 @@ package ccsds_rxtx_parameters is
   constant RXTX_SYSTEM_WB_DATA_BUS_SIZE: integer := 32;-- Wishbone slave data bus size (bits)
   constant RXTX_SYSTEM_WB_ADDR_BUS_SIZE: integer := 4;-- Wishbone slave address bus size (bits)
 -- RX CONFIGURATION
-  constant RX_SYSTEM_AUTO_ENABLED: std_logic := '1';--Automatic activation of RX at startup
+  constant RX_SYSTEM_AUTO_ENABLED: boolean := true;--Automatic activation of RX at startup
 -- TX CONFIGURATION
-  constant TX_SYSTEM_AUTO_ENABLED: std_logic := '1';--Automatic activation of TX at startup
-  constant TX_SYSTEM_AUTO_EXTERNAL: std_logic := '0';--Automatic configuration of RX to use external clock and data
+  constant TX_SYSTEM_AUTO_ENABLED: boolean := true;--Automatic activation of TX at startup
+  constant TX_SYSTEM_AUTO_EXTERNAL: boolean := false;--Automatic configuration of TX to use external clock and data
 -- LAYERS CONFIGURATION
   -- APPLICATION LAYER
   -- PRESENTATION LAYER

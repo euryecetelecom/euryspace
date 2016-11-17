@@ -3,7 +3,7 @@
 ---- Design Name: ccsds_tx_physical_layer
 ---- Version: 1.0.0
 ---- Description:
----- TO BE DONE
+---- CCSDS TX physical layer
 -------------------------------
 ---- Author(s):
 ---- Guillaume REMBERT

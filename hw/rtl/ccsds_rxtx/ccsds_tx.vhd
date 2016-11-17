@@ -26,9 +26,10 @@ use ieee.std_logic_1164.all;
 entity ccsds_tx is
   generic (
     constant CCSDS_TX_BITS_PER_SYMBOL: integer := 1;
-    constant CCSDS_TX_MODULATION_TYPE: integer := 1; -- 1=PSK / 2=GMSK
+    constant CCSDS_TX_BUFFER_SIZE: integer := 16; -- max number of words stored for burst write at full speed when datalinklayer is full
+    constant CCSDS_TX_MODULATION_TYPE: integer := 1; -- 1=QAM/QPSK / 2=GMSK
     constant CCSDS_TX_DATA_BUS_SIZE: integer;
-    constant CCSDS_TX_OVERSAMPLING_RATIO: integer := 4;
+    constant CCSDS_TX_OVERSAMPLING_RATIO: integer := 4; -- symbols to samples over-sampling ratio
     constant CCSDS_TX_PHYS_SIG_QUANT_DEPTH : integer
   );
   port(
@@ -41,8 +42,10 @@ entity ccsds_tx is
     in_sel_i: in std_logic; -- parallel / serial input selection
     rst_i: in std_logic; -- system reset input
     -- outputs
+    buf_ful_o: out std_logic; -- buffer full indicator
     clk_o: out std_logic; -- output samples clock
     ena_o: out std_logic; -- enabled status indicator
+    idl_o: out std_logic; -- idle data insertion indicator
     sam_i_o: out std_logic_vector(CCSDS_TX_PHYS_SIG_QUANT_DEPTH-1 downto 0); -- in-phased parallel complex samples
     sam_q_o: out std_logic_vector(CCSDS_TX_PHYS_SIG_QUANT_DEPTH-1 downto 0) -- quadrature-phased parallel complex samples
   );
@@ -76,6 +79,23 @@ architecture structure of ccsds_tx is
       dat_o: out std_logic_vector(CCSDS_TX_MANAGER_DATA_BUS_SIZE-1 downto 0)
     );
   end component;
+  component ccsds_rxtx_buffer is
+    generic(
+      constant CCSDS_RXTX_BUFFER_DATA_BUS_SIZE : integer;
+      constant CCSDS_RXTX_BUFFER_SIZE : integer
+    );
+    port(
+      clk_i: in std_logic;
+      dat_i: in std_logic_vector(CCSDS_RXTX_BUFFER_DATA_BUS_SIZE-1 downto 0);
+      dat_val_i: in std_logic;
+      dat_nxt_i: in std_logic;
+      rst_i: in std_logic;
+      buf_emp_o: out std_logic;
+      buf_ful_o: out std_logic;
+      dat_o: out std_logic_vector(CCSDS_RXTX_BUFFER_DATA_BUS_SIZE-1 downto 0);
+      dat_val_o: out std_logic
+    );
+  end component;
   component ccsds_tx_datalink_layer is
     generic(
       CCSDS_TX_DATALINK_DATA_BUS_SIZE : integer
@@ -87,7 +107,9 @@ architecture structure of ccsds_tx is
       dat_val_i: in std_logic;
       dat_i: in std_logic_vector(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
       dat_val_o: out std_logic;
-      dat_o: out std_logic_vector(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0)
+      dat_o: out std_logic_vector(CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
+      dat_nxt_o: out std_logic;
+      idl_o: out std_logic
     );
   end component;
   component ccsds_tx_physical_layer is
@@ -109,15 +131,18 @@ architecture structure of ccsds_tx is
     );
   end component;
 
-  signal wire_data_valid_m: std_logic;
-  signal wire_data_valid_d: std_logic;
-  signal wire_data_m: std_logic_vector(CCSDS_TX_DATA_BUS_SIZE-1 downto 0);
-  signal wire_data_d: std_logic_vector(CCSDS_TX_DATA_BUS_SIZE-1 downto 0);
+  signal wire_dat_nxt_buf: std_logic;
+  signal wire_dat_val_buf: std_logic;
+  signal wire_dat_val_dat: std_logic;
+  signal wire_dat_val_man: std_logic;
+  signal wire_dat_buf: std_logic_vector(CCSDS_TX_DATA_BUS_SIZE-1 downto 0);
+  signal wire_dat_dat: std_logic_vector(CCSDS_TX_DATA_BUS_SIZE-1 downto 0);
+  signal wire_dat_man: std_logic_vector(CCSDS_TX_DATA_BUS_SIZE-1 downto 0);
   signal wire_clk_dat: std_logic;
   signal wire_clk_sam: std_logic;
   signal wire_clk_sym: std_logic;
   signal wire_clk_bit: std_logic;
-  signal wire_rst_m: std_logic;
+  signal wire_rst_man: std_logic;
 
 begin
   tx_manager_0: ccsds_tx_manager
@@ -140,8 +165,24 @@ begin
       dat_val_i => dat_val_i,
       dat_par_i => dat_par_i,
       dat_ser_i => dat_ser_i,
-      dat_val_o => wire_data_valid_m,
-      dat_o => wire_data_m
+      dat_val_o => wire_dat_val_man,
+      dat_o => wire_dat_man
+    );
+  tx_buffer_0: ccsds_rxtx_buffer
+    generic map(
+      CCSDS_RXTX_BUFFER_DATA_BUS_SIZE => CCSDS_TX_DATA_BUS_SIZE,
+      CCSDS_RXTX_BUFFER_SIZE => CCSDS_TX_BUFFER_SIZE
+    )
+    port map(
+      clk_i => wire_clk_dat,
+      rst_i => rst_i,
+      dat_nxt_i => wire_dat_nxt_buf,
+      dat_val_i => wire_dat_val_man,
+      dat_i => wire_dat_man,
+      dat_val_o => wire_dat_val_buf,
+--      buf_emp_o => ,
+      buf_ful_o => buf_ful_o,
+      dat_o => wire_dat_buf
     );
   tx_datalink_layer_0: ccsds_tx_datalink_layer
     generic map(
@@ -151,10 +192,12 @@ begin
       clk_dat_i => wire_clk_dat,
       clk_bit_i => wire_clk_bit,
       rst_i => rst_i,
-      dat_val_i => wire_data_valid_m,
-      dat_i => wire_data_m,
-      dat_val_o => wire_data_valid_d,
-      dat_o => wire_data_d
+      dat_val_i => wire_dat_val_buf,
+      dat_i => wire_dat_buf,
+      dat_val_o => wire_dat_val_dat,
+      dat_nxt_o => wire_dat_nxt_buf,
+      dat_o => wire_dat_dat,
+      idl_o => idl_o
     );
   tx_physical_layer_0: ccsds_tx_physical_layer
     generic map(
@@ -170,8 +213,8 @@ begin
       rst_i => rst_i,
       sam_i_o => sam_i_o,
       sam_q_o => sam_q_o,
-      dat_i => wire_data_d,
-      dat_val_i => wire_data_valid_d
+      dat_i => wire_dat_dat,
+      dat_val_i => wire_dat_val_dat
     );
     clk_o <= wire_clk_sam;
 end structure;

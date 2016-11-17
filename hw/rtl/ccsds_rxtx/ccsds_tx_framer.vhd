@@ -36,7 +36,7 @@ entity ccsds_tx_framer is
     constant CCSDS_TX_FRAMER_DATA_LENGTH: integer; -- in Bytes
     constant CCSDS_TX_FRAMER_FOOTER_LENGTH: integer; -- in Bytes
     constant CCSDS_TX_FRAMER_HEADER_LENGTH: integer; -- in Bytes
-    constant CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO: integer := 16 -- activated max framer parallelism speed ratio / 1 = full speed / 2 = wishbone bus max speed / ... / 32 = external serial data
+    constant CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO: integer := 16 -- activated max framer parallelism speed ratio / 1 = full speed / 2 = wishbone bus non-pipelined write max speed / ... / CCSDS_TX_FRAMER_DATA_BUS_SIZE = external serial data
   );
   port(
     -- inputs
@@ -46,7 +46,9 @@ entity ccsds_tx_framer is
     rst_i: in std_logic;
     -- outputs
     dat_o: out std_logic_vector((CCSDS_TX_FRAMER_HEADER_LENGTH+CCSDS_TX_FRAMER_FOOTER_LENGTH+CCSDS_TX_FRAMER_DATA_LENGTH)*8-1 downto 0);
-    dat_val_o: out std_logic
+    dat_nxt_o: out std_logic;
+    dat_val_o: out std_logic;
+    idl_o: out std_logic
   );
 end ccsds_tx_framer;
 
@@ -249,7 +251,7 @@ architecture structure of ccsds_tx_framer is
     -- Generate next_frame, start next header generation
     --=============================================================================
     -- read: dat_val_i, rst_i
-    -- write: wire_header_next, reg_current_frame, reg_next_frame
+    -- write: wire_header_next, reg_current_frame, reg_next_frame, dat_nxt_o, idl_o
     -- r/w: 
     FRAMERGENERATEP: process (clk_i)
     variable next_frame_write_pos: integer range 0 to (CCSDS_TX_FRAMER_DATA_LENGTH*8/CCSDS_TX_FRAMER_DATA_BUS_SIZE)-1 := (CCSDS_TX_FRAMER_DATA_LENGTH*8/CCSDS_TX_FRAMER_DATA_BUS_SIZE)-1;
@@ -264,6 +266,8 @@ architecture structure of ccsds_tx_framer is
           wire_header_next <= '0';
           next_frame_write_pos := (CCSDS_TX_FRAMER_DATA_LENGTH*8/CCSDS_TX_FRAMER_DATA_BUS_SIZE)-1;
           frame_output_counter := 0;
+          idl_o <= '0';
+          dat_nxt_o <= '0';
         else
           -- valid data is presented
           if (dat_val_i = '1') then
@@ -273,34 +277,58 @@ architecture structure of ccsds_tx_framer is
               reg_current_frame(CCSDS_TX_FRAMER_DATA_LENGTH*8-1 downto CCSDS_TX_FRAMER_DATA_BUS_SIZE) <= reg_next_frame;
               -- time to start frame computation
               if (frame_output_counter = 0) then
-                frame_output_counter := (CCSDS_TX_FRAMER_DATA_LENGTH*8*CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO/CCSDS_TX_FRAMER_DATA_BUS_SIZE)-1;
-                wire_header_next <= '1';
-                wire_header_idle <= '0';
-              -- signal a frame ready for computation
+                -- CRC is ready to compute
+                if (wire_footer_busy(next_processing_frame_pointer) = '0') then
+                  frame_output_counter := (CCSDS_TX_FRAMER_DATA_LENGTH*8*CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO/CCSDS_TX_FRAMER_DATA_BUS_SIZE)-1;
+                  wire_header_next <= '1';
+                  wire_header_idle <= '0';
+                  idl_o <= '0';
+                -- source data rate overflow / stop buffer output
+                else
+                  dat_nxt_o <= '0';
+                end if;
               else
-                wire_header_next <= '0';
                 frame_output_counter := frame_output_counter - 1;
-                current_frame_ready := '1';
+                -- signal a frame ready for computation
+                if (current_frame_ready = '0') then
+                  wire_header_next <= '0';
+                  current_frame_ready := '1';
+                -- source data rate overflow
+                else
+                  dat_nxt_o <= '0';
+                end if;
               end if;
               next_frame_write_pos := CCSDS_TX_FRAMER_DATA_LENGTH*8/CCSDS_TX_FRAMER_DATA_BUS_SIZE-1;
-            -- filling next frame
             else
+              -- filling next frame
               reg_next_frame(next_frame_write_pos*CCSDS_TX_FRAMER_DATA_BUS_SIZE-1 downto (next_frame_write_pos-1)*CCSDS_TX_FRAMER_DATA_BUS_SIZE) <= dat_i;
               next_frame_write_pos := next_frame_write_pos-1;
               -- time to start frame computation
               if (frame_output_counter = 0) then
-                frame_output_counter := (CCSDS_TX_FRAMER_DATA_LENGTH*CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO*8/CCSDS_TX_FRAMER_DATA_BUS_SIZE)-1;
-                -- no frame is ready
-                if (current_frame_ready = '0') then
-                  wire_header_next <= '1';
-                  wire_header_idle <= '1';
-                -- a frame is ready
+                -- CRC is ready to compute
+                if (wire_footer_busy(next_processing_frame_pointer) = '0') then
+                  dat_nxt_o <= '1';
+                  frame_output_counter := (CCSDS_TX_FRAMER_DATA_LENGTH*CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO*8/CCSDS_TX_FRAMER_DATA_BUS_SIZE)-1;
+                  -- no frame is ready / inserting idle data
+                  if (current_frame_ready = '0') then
+                    wire_header_next <= '1';
+                    wire_header_idle <= '1';
+                    idl_o <= '1';
+                  -- a frame is ready
+                  else
+                    wire_header_next <= '1';
+                    wire_header_idle <= '0';
+                    current_frame_ready := '0';
+                    idl_o <= '0';
+                  end if;
                 else
-                  wire_header_next <= '1';
-                  wire_header_idle <= '0';
-                  current_frame_ready := '0';
+                  dat_nxt_o <= '0';
                 end if;
               else
+                -- stop data before overflow
+                if (next_frame_write_pos = 1) and (current_frame_ready = '1') then
+                  dat_nxt_o <= '0';
+                end if;
                 frame_output_counter := frame_output_counter - 1;
                 wire_header_next <= '0';
               end if;
@@ -309,14 +337,20 @@ architecture structure of ccsds_tx_framer is
           else
             -- time to start frame computation
             if (frame_output_counter = 0) then
-              frame_output_counter := (CCSDS_TX_FRAMER_DATA_LENGTH*CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO*8/CCSDS_TX_FRAMER_DATA_BUS_SIZE)-1;
-              if (current_frame_ready = '0') then
-                wire_header_next <= '1';
-                wire_header_idle <= '1';
-              else
-                wire_header_next <= '1';
-                wire_header_idle <= '0';
-                current_frame_ready := '0';
+              -- CRC is ready to compute
+              if (wire_footer_busy(next_processing_frame_pointer) = '0') then
+                dat_nxt_o <= '1';
+                frame_output_counter := (CCSDS_TX_FRAMER_DATA_LENGTH*CCSDS_TX_FRAMER_PARALLELISM_MAX_RATIO*8/CCSDS_TX_FRAMER_DATA_BUS_SIZE)-1;
+                if (current_frame_ready = '0') then
+                  wire_header_next <= '1';
+                  wire_header_idle <= '1';
+                  idl_o <= '1';
+                else
+                  wire_header_next <= '1';
+                  wire_header_idle <= '0';
+                  current_frame_ready := '0';
+                  idl_o <= '0';
+                end if;
               end if;
             else
               wire_header_next <= '0';

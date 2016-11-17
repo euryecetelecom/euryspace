@@ -3,7 +3,7 @@
 ---- Design Name: ccsds_tx_mapper
 ---- Version: 1.0.0
 ---- Description:
----- TBD
+---- Implementation of standard CCSDS 401.0-B
 -------------------------------
 ---- Author(s):
 ---- Guillaume REMBERT
@@ -13,21 +13,24 @@
 -------------------------------
 ---- Changes list:
 ---- 2016/11/05: initial release
+---- 2016/11/17: added differential coder
 -------------------------------
 --TODO: Gray coder
---TODO: Differential coder
 
 -- libraries used
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
 --=============================================================================
 -- Entity declaration for ccsds_tx / unitary tx mapper inputs and outputs
 --=============================================================================
 entity ccsds_tx_mapper is
   generic(
-    constant CCSDS_TX_MAPPER_BITS_PER_SYMBOL: integer := 1;
-    constant CCSDS_TX_MAPPER_MODULATION_TYPE: integer := 1; -- 1=nPSK / 2=BPSK
+    constant CCSDS_TX_MAPPER_BITS_PER_SYMBOL: integer := 1; -- For QAM - 1 bit/symbol <=> QPSK/4-QAM - 2 bits/symbol <=> 16-QAM - 3 bits/symbol <=> 64-QAM - ... - N bits/symbol <=> 2^(N*2)-QAM
+    constant CCSDS_TX_MAPPER_DIFFERENTIAL_CODER: boolean := false; -- Differential coder activation
+    constant CCSDS_TX_MAPPER_GRAY_CODER: std_logic := '1'; -- Gray coder activation
+    constant CCSDS_TX_MAPPER_MODULATION_TYPE: integer := 1; -- 1=QPSK/QAM - 2=BPSK
     constant CCSDS_TX_MAPPER_DATA_BUS_SIZE: integer -- in bits
   );
   port(
@@ -51,6 +54,7 @@ architecture structure of ccsds_tx_mapper is
   constant MAPPER_SYMBOL_NUMBER_PER_CHANNEL: integer := CCSDS_TX_MAPPER_DATA_BUS_SIZE*CCSDS_TX_MAPPER_MODULATION_TYPE/(2*CCSDS_TX_MAPPER_BITS_PER_SYMBOL);
 -- internal variable signals
   signal symbol_counter: integer range 1 to MAPPER_SYMBOL_NUMBER_PER_CHANNEL := MAPPER_SYMBOL_NUMBER_PER_CHANNEL;
+  signal prev_sym: std_logic_vector(CCSDS_TX_MAPPER_BITS_PER_SYMBOL-1 downto 0) := (others => '0');
 -- components instanciation and mapping
   begin
 -- presynthesis checks
@@ -71,7 +75,7 @@ architecture structure of ccsds_tx_mapper is
      CHKMAPPERP2 : if (CCSDS_TX_MAPPER_MODULATION_TYPE /= 1) and (CCSDS_TX_MAPPER_MODULATION_TYPE /= 2) generate
       process
       begin
-        report "ERROR: UNKNOWN MODULATION TYPE - 1=nPSK / 2=BPSK" severity failure;
+        report "ERROR: UNKNOWN MODULATION TYPE - 1=QPSK/QAM / 2=BPSK" severity failure;
 	      wait;
       end process;
     end generate CHKMAPPERP2;
@@ -91,19 +95,40 @@ architecture structure of ccsds_tx_mapper is
         if (rst_i = '1') then
           sym_i_o <= (others => '0');
           sym_q_o <= (others => '0');
+          prev_sym <= (others => '0');
           symbol_counter <= MAPPER_SYMBOL_NUMBER_PER_CHANNEL;
           sym_val_o <= '0';
         else
           if (dat_val_i = '1') then
             sym_val_o <= '1';
+            -- Differential coding
+            if (CCSDS_TX_MAPPER_DIFFERENTIAL_CODER = true) then
+              -- BPSK
+              if (CCSDS_TX_MAPPER_BITS_PER_SYMBOL = 1) and (CCSDS_TX_MAPPER_MODULATION_TYPE = 2) then
+                prev_sym <= dat_i(symbol_counter-1 downto symbol_counter-1);
+              -- QPSK/QAM
+              else
+                prev_sym <= dat_i(symbol_counter*2*CCSDS_TX_MAPPER_BITS_PER_SYMBOL-CCSDS_TX_MAPPER_BITS_PER_SYMBOL-1 downto symbol_counter*2*CCSDS_TX_MAPPER_BITS_PER_SYMBOL-2*CCSDS_TX_MAPPER_BITS_PER_SYMBOL);
+              end if;
+            end if;
             -- BPSK mapping
             if (CCSDS_TX_MAPPER_BITS_PER_SYMBOL = 1) and (CCSDS_TX_MAPPER_MODULATION_TYPE = 2) then
-              sym_i_o(0) <= dat_i(symbol_counter-1);
               sym_q_o(0) <= '0';
-            -- nPSK mapping
+              if (CCSDS_TX_MAPPER_DIFFERENTIAL_CODER = true) then
+                sym_i_o(0 downto 0) <= dat_i(symbol_counter-1 downto symbol_counter-1) xor prev_sym;
+              else
+                sym_i_o(0) <= dat_i(symbol_counter-1);
+              end if;
+            -- QPSK/QAM mapping
             else
-              sym_i_o <= dat_i(symbol_counter*CCSDS_TX_MAPPER_BITS_PER_SYMBOL*2-1 downto symbol_counter*2*CCSDS_TX_MAPPER_BITS_PER_SYMBOL-CCSDS_TX_MAPPER_BITS_PER_SYMBOL);
-              sym_q_o <= dat_i(symbol_counter*2*CCSDS_TX_MAPPER_BITS_PER_SYMBOL-CCSDS_TX_MAPPER_BITS_PER_SYMBOL-1 downto symbol_counter*2*CCSDS_TX_MAPPER_BITS_PER_SYMBOL-2*CCSDS_TX_MAPPER_BITS_PER_SYMBOL);
+              if (CCSDS_TX_MAPPER_DIFFERENTIAL_CODER = true) then
+--TODO HERE: GRAY MAPPING
+                sym_i_o <= dat_i(symbol_counter*CCSDS_TX_MAPPER_BITS_PER_SYMBOL*2-1 downto symbol_counter*2*CCSDS_TX_MAPPER_BITS_PER_SYMBOL-CCSDS_TX_MAPPER_BITS_PER_SYMBOL) xor prev_sym;
+                sym_q_o <= dat_i(symbol_counter*2*CCSDS_TX_MAPPER_BITS_PER_SYMBOL-CCSDS_TX_MAPPER_BITS_PER_SYMBOL-1 downto symbol_counter*2*CCSDS_TX_MAPPER_BITS_PER_SYMBOL-2*CCSDS_TX_MAPPER_BITS_PER_SYMBOL) xor dat_i(symbol_counter*CCSDS_TX_MAPPER_BITS_PER_SYMBOL*2-1 downto symbol_counter*2*CCSDS_TX_MAPPER_BITS_PER_SYMBOL-CCSDS_TX_MAPPER_BITS_PER_SYMBOL);
+              else
+                sym_i_o <= dat_i(symbol_counter*CCSDS_TX_MAPPER_BITS_PER_SYMBOL*2-1 downto symbol_counter*2*CCSDS_TX_MAPPER_BITS_PER_SYMBOL-CCSDS_TX_MAPPER_BITS_PER_SYMBOL);
+                sym_q_o <= dat_i(symbol_counter*2*CCSDS_TX_MAPPER_BITS_PER_SYMBOL-CCSDS_TX_MAPPER_BITS_PER_SYMBOL-1 downto symbol_counter*2*CCSDS_TX_MAPPER_BITS_PER_SYMBOL-2*CCSDS_TX_MAPPER_BITS_PER_SYMBOL);
+              end if;
             end if;
             if (symbol_counter = 1) then
               symbol_counter <= MAPPER_SYMBOL_NUMBER_PER_CHANNEL;
