@@ -130,6 +130,7 @@ architecture structure of ccsds_rxtx_top is
         dat_ser_i: in std_logic;
         buf_ful_o: out std_logic;
         clk_o: out std_logic;
+        idl_o: out std_logic;
         sam_i_o: out std_logic_vector(CCSDS_TX_PHYS_SIG_QUANT_DEPTH-1 downto 0);
         sam_q_o: out std_logic_vector(CCSDS_TX_PHYS_SIG_QUANT_DEPTH-1 downto 0);
         ena_o: out std_logic
@@ -190,6 +191,7 @@ begin
         dat_ser_i => tx_dat_ser_i,
         buf_ful_o => wire_tx_buf_ful,
         clk_o => tx_clk_o,
+        idl_o => tx_idl_o,
         sam_i_o => tx_sam_i_o,
         sam_q_o => tx_sam_q_o,
         ena_o => tx_ena_o

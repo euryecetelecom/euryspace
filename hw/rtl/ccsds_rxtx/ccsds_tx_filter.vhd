@@ -26,7 +26,7 @@ entity ccsds_tx_filter is
   generic(
     constant CCSDS_TX_FILTER_BITS_PER_SYMBOL: integer; -- in bits
     constant CCSDS_TX_FILTER_OVERSAMPLING_RATIO: integer;
-    constant CCSDS_TX_FILTER_OFFSET_PSK: boolean := true;
+    constant CCSDS_TX_FILTER_OFFSET_IQ: boolean := true;
     constant CCSDS_TX_FILTER_MODULATION_TYPE: integer;
     constant CCSDS_TX_FILTER_SIG_QUANT_DEPTH: integer
   );
@@ -128,7 +128,7 @@ architecture structure of ccsds_tx_filter is
     tx_oversampler_q_0: ccsds_rxtx_oversampler
       generic map(
         CCSDS_RXTX_OVERSAMPLER_OVERSAMPLING_RATIO => CCSDS_TX_FILTER_OVERSAMPLING_RATIO,
-        CCSDS_RXTX_OVERSAMPLER_SYMBOL_DEPHASING => CCSDS_TX_FILTER_OFFSET_PSK,
+        CCSDS_RXTX_OVERSAMPLER_SYMBOL_DEPHASING => CCSDS_TX_FILTER_OFFSET_IQ,
         CCSDS_RXTX_OVERSAMPLER_SIG_QUANT_DEPTH => CCSDS_TX_FILTER_SIG_QUANT_DEPTH
       )
       port map(

@@ -27,7 +27,7 @@ entity ccsds_tx is
   generic (
     constant CCSDS_TX_BITS_PER_SYMBOL: integer := 1;
     constant CCSDS_TX_BUFFER_SIZE: integer := 16; -- max number of words stored for burst write at full speed when datalinklayer is full
-    constant CCSDS_TX_MODULATION_TYPE: integer := 1; -- 1=QAM/QPSK / 2=GMSK
+    constant CCSDS_TX_MODULATION_TYPE: integer := 1; -- 1=QAM/QPSK / 2=BPSK
     constant CCSDS_TX_DATA_BUS_SIZE: integer;
     constant CCSDS_TX_OVERSAMPLING_RATIO: integer := 4; -- symbols to samples over-sampling ratio
     constant CCSDS_TX_PHYS_SIG_QUANT_DEPTH : integer
@@ -98,7 +98,8 @@ architecture structure of ccsds_tx is
   end component;
   component ccsds_tx_datalink_layer is
     generic(
-      CCSDS_TX_DATALINK_DATA_BUS_SIZE : integer
+      CCSDS_TX_DATALINK_DATA_BUS_SIZE: integer;
+      CCSDS_TX_DATALINK_CODER_DIFFERENTIAL_BITS_PER_CODEWORD: integer
     );
     port(
       clk_bit_i: in std_logic;
@@ -186,7 +187,8 @@ begin
     );
   tx_datalink_layer_0: ccsds_tx_datalink_layer
     generic map(
-      CCSDS_TX_DATALINK_DATA_BUS_SIZE => CCSDS_TX_DATA_BUS_SIZE
+      CCSDS_TX_DATALINK_DATA_BUS_SIZE => CCSDS_TX_DATA_BUS_SIZE,
+      CCSDS_TX_DATALINK_CODER_DIFFERENTIAL_BITS_PER_CODEWORD => CCSDS_TX_BITS_PER_SYMBOL
     )
     port map(
       clk_dat_i => wire_clk_dat,

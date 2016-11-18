@@ -19,7 +19,6 @@
 -- libraries used
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.math_real.all;
 
 --=============================================================================
 -- Entity declaration for ccsds_tx / unitary tx datalink layer inputs and outputs
@@ -27,7 +26,9 @@ use ieee.math_real.all;
 entity ccsds_tx_datalink_layer is
   generic (
     constant CCSDS_TX_DATALINK_ASM_LENGTH: integer := 4; -- Attached Synchronization Marker length / in Bytes
-    constant CCSDS_TX_DATALINK_DATA_BUS_SIZE: integer := 32; -- in bits
+    constant CCSDS_TX_DATALINK_CODER_DIFFERENTIAL_ENABLED: boolean := false; -- Enable differential coder
+    constant CCSDS_TX_DATALINK_CODER_DIFFERENTIAL_BITS_PER_CODEWORD: integer; -- Number of bits per codeword from differential coder
+    constant CCSDS_TX_DATALINK_DATA_BUS_SIZE: integer; -- in bits
     constant CCSDS_TX_DATALINK_DATA_LENGTH: integer := 12; -- datagram data size (Bytes) / (has to be a multiple of CCSDS_TX_DATALINK_DATA_BUS_SIZE)
     constant CCSDS_TX_DATALINK_FOOTER_LENGTH: integer := 2; -- datagram footer length (Bytes)
     constant CCSDS_TX_DATALINK_HEADER_LENGTH: integer := 6 -- datagram header length (Bytes)
@@ -71,6 +72,8 @@ architecture structure of ccsds_tx_datalink_layer is
   end component;
   component ccsds_tx_coder is
     generic(
+      CCSDS_TX_CODER_DIFFERENTIAL_BITS_PER_CODEWORD: integer;
+      CCSDS_TX_CODER_DIFFERENTIAL_ENABLED: boolean;
       CCSDS_TX_CODER_DATA_BUS_SIZE : integer;
       CCSDS_TX_CODER_ASM_LENGTH: integer
     );
@@ -117,7 +120,9 @@ architecture structure of ccsds_tx_datalink_layer is
   tx_datalink_coder_0: ccsds_tx_coder
     generic map(
       CCSDS_TX_CODER_ASM_LENGTH => CCSDS_TX_DATALINK_ASM_LENGTH,
-      CCSDS_TX_CODER_DATA_BUS_SIZE => (CCSDS_TX_DATALINK_DATA_LENGTH+CCSDS_TX_DATALINK_HEADER_LENGTH+CCSDS_TX_DATALINK_FOOTER_LENGTH)*8
+      CCSDS_TX_CODER_DATA_BUS_SIZE => (CCSDS_TX_DATALINK_DATA_LENGTH+CCSDS_TX_DATALINK_HEADER_LENGTH+CCSDS_TX_DATALINK_FOOTER_LENGTH)*8,
+      CCSDS_TX_CODER_DIFFERENTIAL_BITS_PER_CODEWORD => CCSDS_TX_DATALINK_CODER_DIFFERENTIAL_BITS_PER_CODEWORD,
+      CCSDS_TX_CODER_DIFFERENTIAL_ENABLED => CCSDS_TX_DATALINK_CODER_DIFFERENTIAL_ENABLED
     )
     port map(
       clk_i => clk_dat_i,
@@ -127,15 +132,35 @@ architecture structure of ccsds_tx_datalink_layer is
       dat_val_o => wire_coder_data_valid,
       dat_o => wire_coder_data
     );
-
 -- presynthesis checks
 -- internal processing
     --=============================================================================
     -- Begin of bitsoutputp
     -- Generate valid bits output word by word on coder data_valid signal
     --=============================================================================
-    -- read: rst_i, wire_coder_data, wire_coder_data_valid
-    -- write: dat_o, dat_val_o
+    -- read: rst_i, wire_coder_data_valid
+    -- write: dat_val_o
+    -- r/w: 
+    BITSVALIDP: process (clk_dat_i)
+    begin
+      -- on each clock rising edge
+      if rising_edge(clk_dat_i) then
+        -- reset signal received
+        if (rst_i = '1') then
+          dat_val_o <= '0';
+        else
+          if (wire_coder_data_valid = '1') then
+            dat_val_o <= '1';
+          end if;
+        end if;
+      end if;
+    end process;
+    --=============================================================================
+    -- Begin of bitsoutputp
+    -- Generate valid bits output word by word on coder data_valid signal
+    --=============================================================================
+    -- read: rst_i, wire_coder_data
+    -- write: dat_o
     -- r/w: 
     BITSOUTPUTP: process (clk_bit_i)
     variable next_word_pointer : integer range 0 to FRAME_OUTPUT_WORDS := FRAME_OUTPUT_WORDS - 1;
@@ -147,16 +172,13 @@ architecture structure of ccsds_tx_datalink_layer is
         if (rst_i = '1') then
           next_word_pointer := FRAME_OUTPUT_WORDS - 1;
           dat_o <= (others => '0');
-          dat_val_o <= '0';
         else
           -- generating valid bits output words
           if (next_word_pointer = FRAME_OUTPUT_WORDS - 1) then
             current_frame := wire_coder_data(FRAME_OUTPUT_SIZE-CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto 0);
             dat_o <= wire_coder_data(FRAME_OUTPUT_SIZE-1 downto FRAME_OUTPUT_SIZE-CCSDS_TX_DATALINK_DATA_BUS_SIZE);
             next_word_pointer := FRAME_OUTPUT_WORDS - 2;
-            dat_val_o <= '1';
           else
-            dat_val_o <= '1';
             dat_o <= current_frame((next_word_pointer+1)*CCSDS_TX_DATALINK_DATA_BUS_SIZE-1 downto next_word_pointer*CCSDS_TX_DATALINK_DATA_BUS_SIZE);
             if (next_word_pointer = 0) then
               next_word_pointer := FRAME_OUTPUT_WORDS - 1;
