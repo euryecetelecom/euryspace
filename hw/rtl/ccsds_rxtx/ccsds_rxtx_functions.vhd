@@ -56,17 +56,17 @@ package body ccsds_rxtx_functions is
     variable rand: real := 0.0;
     variable temp: std_logic_vector(31 downto 0);
   begin
-    if (vector_size <= 32) then
+    if (vector_size < 32) then
       uniform(seed1, seed2, rand);
-      rand := rand*(2**(real(vector_size)-1.0));
+      rand := rand*(2**(real(vector_size))-1.0);
       result := std_logic_vector(to_unsigned(integer(rand),vector_size));
     else
       uniform(seed1, seed2, rand);
       for vector_pointer in 0 to vector_size-1 loop
         uniform(seed1, seed2, rand);
-        rand := rand*(2**(real(32)-1.0));
+        rand := rand*(2**(real(31))-1.0);
         temp := std_logic_vector(to_unsigned(integer(rand),32));
-        result(vector_pointer) := temp(vector_pointer mod 32);
+        result(vector_pointer) := temp(0);
       end loop;
     end if;
   end sim_generate_random_std_logic_vector;

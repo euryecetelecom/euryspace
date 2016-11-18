@@ -28,7 +28,8 @@ entity ccsds_tx_filter is
     constant CCSDS_TX_FILTER_OVERSAMPLING_RATIO: integer;
     constant CCSDS_TX_FILTER_OFFSET_IQ: boolean := true;
     constant CCSDS_TX_FILTER_MODULATION_TYPE: integer;
-    constant CCSDS_TX_FILTER_SIG_QUANT_DEPTH: integer
+    constant CCSDS_TX_FILTER_SIG_QUANT_DEPTH: integer;
+    constant CCSDS_TX_FILTER_TARGET_SNR: real := 40.0
   );
   port(
     -- inputs
@@ -48,6 +49,21 @@ end ccsds_tx_filter;
 -- architecture declaration / internal components and connections
 --=============================================================================
 architecture structure of ccsds_tx_filter is
+  component ccsds_tx_mapper_symbols_samples is
+    generic(
+      constant CCSDS_TX_MAPPER_TARGET_SNR: real;
+      constant CCSDS_TX_MAPPER_BITS_PER_SYMBOL: integer;
+      constant CCSDS_TX_MAPPER_QUANTIZATION_DEPTH: integer
+    );
+    port(
+      clk_i: in std_logic;
+      rst_i: in std_logic;
+      sym_i: in std_logic_vector(CCSDS_TX_MAPPER_BITS_PER_SYMBOL-1 downto 0);
+      sym_val_i: in std_logic;
+      sam_val_o: out std_logic;
+      sam_o: out std_logic_vector(CCSDS_TX_MAPPER_QUANTIZATION_DEPTH-1 downto 0)
+    );
+  end component;
   component ccsds_rxtx_oversampler is
     generic(
       CCSDS_RXTX_OVERSAMPLER_OVERSAMPLING_RATIO: integer;
@@ -91,10 +107,24 @@ architecture structure of ccsds_tx_filter is
   signal wire_sam_q_srrc_val: std_logic;
 -- components instanciation and mapping
   begin
+  tx_mapper_symbols_samples_i_0: ccsds_tx_mapper_symbols_samples
+    generic map(
+      CCSDS_TX_MAPPER_QUANTIZATION_DEPTH => CCSDS_TX_FILTER_SIG_QUANT_DEPTH,
+      CCSDS_TX_MAPPER_TARGET_SNR => CCSDS_TX_FILTER_TARGET_SNR,
+      CCSDS_TX_MAPPER_BITS_PER_SYMBOL => CCSDS_TX_FILTER_BITS_PER_SYMBOL
+    )
+    port map(
+      clk_i => clk_i,
+      sym_i => sym_i_i,
+      sym_val_i => sym_val_i,
+      rst_i => rst_i,
+      sam_o => wire_sam_i,
+      sam_val_o => wire_sam_i_val
+    );
   tx_oversampler_i_0: ccsds_rxtx_oversampler
     generic map(
       CCSDS_RXTX_OVERSAMPLER_OVERSAMPLING_RATIO => CCSDS_TX_FILTER_OVERSAMPLING_RATIO,
-      CCSDS_RXTX_OVERSAMPLER_SYMBOL_DEPHASING => false,
+      CCSDS_RXTX_OVERSAMPLER_SYMBOL_DEPHASING => CCSDS_TX_FILTER_OFFSET_IQ,
       CCSDS_RXTX_OVERSAMPLER_SIG_QUANT_DEPTH => CCSDS_TX_FILTER_SIG_QUANT_DEPTH
     )
     port map(
@@ -125,10 +155,24 @@ architecture structure of ccsds_tx_filter is
   end generate BPSK_GENERATION;
   -- nPSK
   NPSK_GENERATION: if (CCSDS_TX_FILTER_MODULATION_TYPE /= 2) or (CCSDS_TX_FILTER_BITS_PER_SYMBOL /= 1) generate
+    tx_mapper_symbols_samples_q_0: ccsds_tx_mapper_symbols_samples
+      generic map(
+        CCSDS_TX_MAPPER_QUANTIZATION_DEPTH => CCSDS_TX_FILTER_SIG_QUANT_DEPTH,
+        CCSDS_TX_MAPPER_TARGET_SNR => CCSDS_TX_FILTER_TARGET_SNR,
+        CCSDS_TX_MAPPER_BITS_PER_SYMBOL => CCSDS_TX_FILTER_BITS_PER_SYMBOL
+      )
+      port map(
+        clk_i => clk_i,
+        sym_i => sym_q_i,
+        sym_val_i => sym_val_i,
+        rst_i => rst_i,
+        sam_o => wire_sam_q,
+        sam_val_o => wire_sam_q_val
+      );
     tx_oversampler_q_0: ccsds_rxtx_oversampler
       generic map(
         CCSDS_RXTX_OVERSAMPLER_OVERSAMPLING_RATIO => CCSDS_TX_FILTER_OVERSAMPLING_RATIO,
-        CCSDS_RXTX_OVERSAMPLER_SYMBOL_DEPHASING => CCSDS_TX_FILTER_OFFSET_IQ,
+        CCSDS_RXTX_OVERSAMPLER_SYMBOL_DEPHASING => false,
         CCSDS_RXTX_OVERSAMPLER_SIG_QUANT_DEPTH => CCSDS_TX_FILTER_SIG_QUANT_DEPTH
       )
       port map(
@@ -163,53 +207,4 @@ architecture structure of ccsds_tx_filter is
 			  wait;
 		  end process;
 	  end generate CHKFILTERP0;
--- internal processing
---=============================================================================
-    -- Begin of samplesp
-    -- Convert symbols to signed samples
-    --=============================================================================
-    -- read: rst_i, sym_i, sym_val_i
-    -- write: wire_sam_i,  wire_sam_i_val, wire_sam_q, wire_sam_q_val
-    -- r/w:
-    SAMPLESP: process (clk_i)
-    begin
-      -- on each clock rising edge
-      if rising_edge(clk_i) then
-        -- reset signal received
-        if (rst_i = '1') then
-          wire_sam_i_val <= '0';
-          wire_sam_q_val <= '0';
-        else
-          if (sym_val_i = '1') then
-            wire_sam_i_val <= '1';
-            wire_sam_q_val <= '1';
-            if (CCSDS_TX_FILTER_BITS_PER_SYMBOL > 1) then
-              wire_sam_i(CCSDS_TX_FILTER_SIG_QUANT_DEPTH-2 downto CCSDS_TX_FILTER_SIG_QUANT_DEPTH-CCSDS_TX_FILTER_BITS_PER_SYMBOL) <= sym_i_i(CCSDS_TX_FILTER_BITS_PER_SYMBOL-2 downto 0);
-              wire_sam_q(CCSDS_TX_FILTER_SIG_QUANT_DEPTH-2 downto CCSDS_TX_FILTER_SIG_QUANT_DEPTH-CCSDS_TX_FILTER_BITS_PER_SYMBOL) <= sym_q_i(CCSDS_TX_FILTER_BITS_PER_SYMBOL-2 downto 0);
-            end if;
-            -- positive I value
-            if (sym_i_i(CCSDS_TX_FILTER_BITS_PER_SYMBOL-1) = '1') then
-              wire_sam_i(CCSDS_TX_FILTER_SIG_QUANT_DEPTH-1) <= '0';
-              wire_sam_i(CCSDS_TX_FILTER_SIG_QUANT_DEPTH-CCSDS_TX_FILTER_BITS_PER_SYMBOL-1 downto 0) <= (others => '1');
-            --negative I value
-            else
-              wire_sam_i(CCSDS_TX_FILTER_SIG_QUANT_DEPTH-1) <= '1';
-              wire_sam_i(CCSDS_TX_FILTER_SIG_QUANT_DEPTH-CCSDS_TX_FILTER_BITS_PER_SYMBOL-1 downto 0) <= (others => '0');
-            end if;
-            -- positive Q value
-            if (sym_q_i(CCSDS_TX_FILTER_BITS_PER_SYMBOL-1) = '1') then
-              wire_sam_q(CCSDS_TX_FILTER_SIG_QUANT_DEPTH-1) <= '0';
-              wire_sam_q(CCSDS_TX_FILTER_SIG_QUANT_DEPTH-CCSDS_TX_FILTER_BITS_PER_SYMBOL-1 downto 0) <= (others => '1');
-            -- negative Q value
-            else
-              wire_sam_q(CCSDS_TX_FILTER_SIG_QUANT_DEPTH-1) <= '1';
-              wire_sam_q(CCSDS_TX_FILTER_SIG_QUANT_DEPTH-CCSDS_TX_FILTER_BITS_PER_SYMBOL-1 downto 0) <= (others => '0');
-            end if;
-          else
-            wire_sam_i_val <= '0';
-            wire_sam_q_val <= '0';
-          end if;
-        end if;
-      end if;
-    end process;
 end structure;

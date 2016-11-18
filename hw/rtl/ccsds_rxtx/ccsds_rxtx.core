@@ -28,7 +28,8 @@ files =
  ccsds_tx_framer.vhd
  ccsds_tx_header.vhd
  ccsds_tx_manager.vhd
- ccsds_tx_mapper.vhd
+ ccsds_tx_mapper_bits_symbols.vhd
+ ccsds_tx_mapper_symbols_samples.vhd
  ccsds_tx_physical_layer.vhd
  ccsds_tx_randomizer.vhd
  ccsds_tx_synchronizer.vhd

@@ -61,7 +61,7 @@ architecture structure of ccsds_rxtx_srrc is
 -- internal constants
   constant CCSDS_RXTX_SRRC_RESPONSE_SYMBOL_CYCLES: integer:= 6; -- in symbol Time
   constant CCSDS_RXTX_SRRC_FIR_COEFFICIENTS_NUMBER: integer := CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO*CCSDS_RXTX_SRRC_RESPONSE_SYMBOL_CYCLES*2+1;
-  constant CCSDS_RXTX_SRRC_NORMALIZATION_GAIN: real := real(2**(CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH-2)); -- Exact value should be Sqrt(Sum(Pow(coef,2))) * Full Scale Value
+  constant CCSDS_RXTX_SRRC_NORMALIZATION_GAIN: real := 2.0**(real(CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH) - real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO)**0.5 + 1.0) - 1.0; -- Exact value should be (RMS Gain = Sqrt(Sum(Pow(coef,2)))) * Full Scale Value 
   constant CCSDS_RXTX_SRRC_SIG_MUL_SIZE: integer := 2*CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH;
   constant CCSDS_RXTX_SRRC_SIG_ADD_SIZE: integer := CCSDS_RXTX_SRRC_SIG_MUL_SIZE;
 -- internal variable signals

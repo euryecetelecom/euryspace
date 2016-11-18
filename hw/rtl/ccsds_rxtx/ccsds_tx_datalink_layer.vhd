@@ -157,7 +157,7 @@ architecture structure of ccsds_tx_datalink_layer is
     end process;
     --=============================================================================
     -- Begin of bitsoutputp
-    -- Generate valid bits output word by word on coder data_valid signal
+    -- Generate bits output word by word based on coder output
     --=============================================================================
     -- read: rst_i, wire_coder_data
     -- write: dat_o

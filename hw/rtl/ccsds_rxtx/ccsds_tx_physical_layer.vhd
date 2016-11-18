@@ -3,7 +3,7 @@
 ---- Design Name: ccsds_tx_physical_layer
 ---- Version: 1.0.0
 ---- Description:
----- CCSDS TX physical layer
+---- Implementation of standard CCSDS 401.0-B
 -------------------------------
 ---- Author(s):
 ---- Guillaume REMBERT
@@ -14,6 +14,7 @@
 ---- Changes list:
 ---- 2015/11/17: initial release
 -------------------------------
+--TODO: Gray coder
 
 -- libraries used
 library ieee;
@@ -42,8 +43,8 @@ entity ccsds_tx_physical_layer is
 end ccsds_tx_physical_layer;
 
 -- internal processing
-architecture rtl of ccsds_tx_physical_layer is
-  component ccsds_tx_mapper is
+architecture structure of ccsds_tx_physical_layer is
+  component ccsds_tx_mapper_bits_symbols is
     generic(
       CCSDS_TX_MAPPER_DATA_BUS_SIZE: integer;
       CCSDS_TX_MAPPER_MODULATION_TYPE: integer;
@@ -81,10 +82,9 @@ architecture rtl of ccsds_tx_physical_layer is
   signal wire_sym_i: std_logic_vector(CCSDS_TX_PHYSICAL_BITS_PER_SYMBOL-1 downto 0);
   signal wire_sym_q: std_logic_vector(CCSDS_TX_PHYSICAL_BITS_PER_SYMBOL-1 downto 0);
   signal wire_sym_val: std_logic;
-  signal wire_sam_val: std_logic;
   
   begin
-  tx_mapper_0: ccsds_tx_mapper
+  tx_mapper_bits_symbols_0: ccsds_tx_mapper_bits_symbols
     generic map(
       CCSDS_TX_MAPPER_BITS_PER_SYMBOL => CCSDS_TX_PHYSICAL_BITS_PER_SYMBOL,
       CCSDS_TX_MAPPER_MODULATION_TYPE => CCSDS_TX_PHYSICAL_MODULATION_TYPE,
@@ -112,8 +112,8 @@ architecture rtl of ccsds_tx_physical_layer is
       sym_q_i => wire_sym_q,
       sym_val_i => wire_sym_val,
       rst_i => rst_i,
-      sam_val_o => wire_sam_val,
+--      sam_val_o => ,
       sam_i_o => sam_i_o,
       sam_q_o => sam_q_o
     );
-end rtl;
+end structure;
