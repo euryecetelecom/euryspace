@@ -18,7 +18,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 
 --=============================================================================
--- Entity declaration for ccsds_tx / unitary tx mapper inputs and outputs
+-- Entity declaration for ccsds_tx / unitary tx differential coder inputs and outputs
 --=============================================================================
 entity ccsds_tx_coder_differential is
   generic(
@@ -36,7 +36,6 @@ entity ccsds_tx_coder_differential is
     dat_val_o: out std_logic
   );
 end ccsds_tx_coder_differential;
-
 
 --=============================================================================
 -- architecture declaration / internal components and connections

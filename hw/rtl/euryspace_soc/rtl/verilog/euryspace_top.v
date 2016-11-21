@@ -44,7 +44,7 @@ module orpsoc_top #(
   parameter EURYSPACE_SPI0_WB_ADR_WIDTH = 3,
   parameter	EURYSPACE_CCSDS_RXTX0_WB_ADR_WIDTH = 4,
   parameter	EURYSPACE_CCSDS_RXTX0_RX_SAM_WIDTH = 16,
-  parameter	EURYSPACE_CCSDS_RXTX0_TX_SAM_WIDTH = 16,
+  parameter	EURYSPACE_CCSDS_RXTX0_TX_SAM_WIDTH = 8,
   parameter EURYSPACE_I2C0_SADR = 8'h45
 )(
 	input sys_clk_pad_i,

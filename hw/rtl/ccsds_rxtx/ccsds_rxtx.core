@@ -21,6 +21,7 @@ files =
  ccsds_rx_physical_layer.vhd
  ccsds_tx.vhd
  ccsds_tx_coder.vhd
+# ccsds_tx_coder_convolutional.vhd
  ccsds_tx_coder_differential.vhd
  ccsds_tx_datalink_layer.vhd
  ccsds_tx_filter.vhd

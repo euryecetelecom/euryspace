@@ -48,15 +48,15 @@ architecture rtl of ccsds_tx_mapper_symbols_samples is
 -- internal constants
   constant QUANTIZATION_SNR: real := 6.02*real(CCSDS_TX_MAPPER_QUANTIZATION_DEPTH);
   constant REQUIRED_SNR: real := real(2 + 2*CCSDS_TX_MAPPER_BITS_PER_SYMBOL) + CCSDS_TX_MAPPER_TARGET_SNR;
-  constant SYMBOL_STEP: real := real(2**(CCSDS_TX_MAPPER_QUANTIZATION_DEPTH-CCSDS_TX_MAPPER_BITS_PER_SYMBOL)-1);
+  constant SYMBOL_STEP: real := 2.0**(CCSDS_TX_MAPPER_QUANTIZATION_DEPTH) / real(CCSDS_TX_MAPPER_BITS_PER_SYMBOL+1);
 -- internal variable signals
   type samples_array is array(2**(CCSDS_TX_MAPPER_BITS_PER_SYMBOL)-1 downto 0) of std_logic_vector(CCSDS_TX_MAPPER_QUANTIZATION_DEPTH-1 downto 0);
   signal symbols_values: samples_array;
 -- components instanciation and mapping
   begin
     SYMBOLS_VALUES_GENERATOR: for symbol_counter in 0 to 2**(CCSDS_TX_MAPPER_BITS_PER_SYMBOL-1)-1 generate
-      symbols_values(2**(CCSDS_TX_MAPPER_BITS_PER_SYMBOL-1)+symbol_counter) <= std_logic_vector(to_signed(integer(real(symbol_counter+1) * SYMBOL_STEP),CCSDS_TX_MAPPER_QUANTIZATION_DEPTH));
-      symbols_values(2**(CCSDS_TX_MAPPER_BITS_PER_SYMBOL-1)-symbol_counter-1) <= std_logic_vector(to_signed(integer(-(1.0) * real(symbol_counter+1) * SYMBOL_STEP),CCSDS_TX_MAPPER_QUANTIZATION_DEPTH));
+      symbols_values(2**(CCSDS_TX_MAPPER_BITS_PER_SYMBOL-1)+symbol_counter) <= std_logic_vector(to_signed(integer(2.0**(CCSDS_TX_MAPPER_QUANTIZATION_DEPTH-1) - 1.0 - real(symbol_counter) * SYMBOL_STEP),CCSDS_TX_MAPPER_QUANTIZATION_DEPTH));
+      symbols_values(2**(CCSDS_TX_MAPPER_BITS_PER_SYMBOL-1)-symbol_counter-1) <= std_logic_vector(to_signed(integer(-(2.0**(CCSDS_TX_MAPPER_QUANTIZATION_DEPTH-1)) + 1.0 + real(symbol_counter) * SYMBOL_STEP),CCSDS_TX_MAPPER_QUANTIZATION_DEPTH));
     end generate SYMBOLS_VALUES_GENERATOR;
 -- presynthesis checks
   -- Check SNR level requested is respected

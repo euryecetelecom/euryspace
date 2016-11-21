@@ -9,6 +9,7 @@
 ---- 3: generate wb read/write cycles signals
 ---- 4: generate rx/tx external data and samples signals
 ---- 5: generate test sequences for sub-components
+---- 6: store signals results as ASCII files
 -------------------------------
 ---- Author(s):
 ---- Guillaume Rembert
@@ -27,12 +28,17 @@
 ---- 2016/11/05: adding mapper sub-component test ressources
 ---- 2016/11/08: adding srrc + filter sub-components test ressources
 ---- 2016/11/18: adding differential coder + symbols to samples mapper sub-components test ressources
+---- 2016/11/20: adding files output for samples to allow external software analysis
 -------------------------------
 --TODO: functions for sub-components interactions and checks (wb_read, wb_write, buffer_read, ...)
+
+-- To convert hexa ASCII encoded output files (hex) to binary files (raw wav) : xxd -r -p samples.hex > samples.wav
+-- To change endianness: xxd -r -p samples.hex | dd conv=swab of=samples.wav
 
 -- libraries used
 library ieee;
 use ieee.std_logic_1164.all;
+use std.textio.all;
 library work;
 use work.ccsds_rxtx_functions.all;
 use work.ccsds_rxtx_parameters.all;
@@ -71,8 +77,8 @@ entity ccsds_rxtx_bench is
     CCSDS_RXTX_BENCH_FILTER0_OFFSET_IQ: boolean := true;
     CCSDS_RXTX_BENCH_FILTER0_OVERSAMPLING_RATIO: integer := 4;
     CCSDS_RXTX_BENCH_FILTER0_ROLL_OFF: real := 0.5;
-    CCSDS_RXTX_BENCH_FILTER0_SIG_QUANT_DEPTH: integer := 16;
-    CCSDS_RXTX_BENCH_FILTER0_TARGET_SNR: real := 50.0;
+    CCSDS_RXTX_BENCH_FILTER0_SIG_QUANT_DEPTH: integer := 8;
+    CCSDS_RXTX_BENCH_FILTER0_TARGET_SNR: real := 40.0;
     CCSDS_RXTX_BENCH_FILTER0_BITS_PER_SYMBOL: integer := 1;
     CCSDS_RXTX_BENCH_FILTER0_MODULATION_TYPE: integer := 1;
     -- FRAMER
@@ -92,8 +98,8 @@ entity ccsds_rxtx_bench is
 		CCSDS_RXTX_BENCH_MAPPER_BITS_SYMBOLS0_DATA_BUS_SIZE: integer := 32;
     CCSDS_RXTX_BENCH_MAPPER_BITS_SYMBOLS0_MODULATION_TYPE: integer := 1;
 		-- MAPPER SYMBOLS SAMPLES
-		CCSDS_RXTX_BENCH_MAPPER_SYMBOLS_SAMPLES0_BITS_PER_SYMBOL: integer := 4;
-		CCSDS_RXTX_BENCH_MAPPER_SYMBOLS_SAMPLES0_QUANTIZATION_DEPTH: integer := 16;
+		CCSDS_RXTX_BENCH_MAPPER_SYMBOLS_SAMPLES0_BITS_PER_SYMBOL: integer := 3;
+		CCSDS_RXTX_BENCH_MAPPER_SYMBOLS_SAMPLES0_QUANTIZATION_DEPTH: integer := 8;
     CCSDS_RXTX_BENCH_MAPPER_SYMBOLS_SAMPLES0_TARGET_SNR: real := 40.0;
     -- SERDES
     CCSDS_RXTX_BENCH_SERDES0_DEPTH: integer := 32;
@@ -137,7 +143,9 @@ entity ccsds_rxtx_bench is
     CCSDS_RXTX_BENCH_START_RESET_SIG_DURATION: time := 400 ns;
     CCSDS_RXTX_BENCH_START_SERDES_WAIT_DURATION: time := 2000 ns;
     CCSDS_RXTX_BENCH_START_SRRC_WAIT_DURATION: time := 2000 ns;
-    CCSDS_RXTX_BENCH_START_WB_WAIT_DURATION: time := 1600 ns
+    CCSDS_RXTX_BENCH_START_WB_WAIT_DURATION: time := 1600 ns;
+    CCSDS_RXTX_BENCH_OUTPUT_SIGNALS_ENABLE: boolean := true;
+    CCSDS_RXTX_BENCH_OUTPUT_SIGNALS_FILES_NAME: string := "samples"
   );
 end ccsds_rxtx_bench;
 
@@ -365,6 +373,12 @@ architecture behaviour of ccsds_rxtx_bench is
   signal bench_ena_mapper_symbols_samples0_random_data: std_logic := '0';
   signal bench_ena_rxtx0_random_data: std_logic := '0';
   signal bench_ena_serdes0_random_data: std_logic := '0';
+  
+  file CCSDS_RXTX_BENCH_FILTER0_OUTPUT_CSV_IQ_FILE: text open write_mode is out CCSDS_RXTX_BENCH_OUTPUT_SIGNALS_FILES_NAME & "_filter0_iq.csv";
+  file CCSDS_RXTX_BENCH_FILTER0_OUTPUT_HEX_IQ_FILE: text open write_mode is out CCSDS_RXTX_BENCH_OUTPUT_SIGNALS_FILES_NAME & "_filter0_iq.hex";
+  file CCSDS_RXTX_BENCH_FILTER0_OUTPUT_HEX_I_FILE: text open write_mode is out CCSDS_RXTX_BENCH_OUTPUT_SIGNALS_FILES_NAME & "_filter0_i.hex";
+  file CCSDS_RXTX_BENCH_FILTER0_OUTPUT_HEX_Q_FILE: text open write_mode is out CCSDS_RXTX_BENCH_OUTPUT_SIGNALS_FILES_NAME & "_filter0_q.hex";
+  file CCSDS_RXTX_BENCH_SRRC0_OUTPUT_HEX_FILE: text open write_mode is out CCSDS_RXTX_BENCH_OUTPUT_SIGNALS_FILES_NAME & "_srrc0.hex";
 
 -- synthetic generated stimuli
 --NB: un-initialized on purposes - to allow observation of components default behaviour
@@ -825,7 +839,7 @@ architecture behaviour of ccsds_rxtx_bench is
         rst_i => bench_sti_filter0_rst,
         sam_o => bench_res_filter0_srrc_sam_q,
         sam_val_o => bench_res_filter0_srrc_sam_q_val
-      );
+     );
     --=============================================================================
     -- Begin of bench_sti_rxtx0_wb_clkp
     -- bench_sti_rxtx0_wb_clk generation
@@ -1576,10 +1590,14 @@ architecture behaviour of ccsds_rxtx_bench is
     -- Begin of filterp
     -- generation of filter subsystem unit-tests
     --=============================================================================
-    -- read: 
-    -- write: 
-    -- r/w: 
+    -- read:
+    -- write:
+    -- r/w:
     FILTERP : process
+      variable samples_csv_output: line;
+      variable samples_hex_output: line;
+      variable samples_hex_i_output: line;
+      variable samples_hex_q_output: line;
       begin
       -- let the system free run
         wait for (CCSDS_RXTX_BENCH_START_FREE_RUN_DURATION/2);
@@ -1600,16 +1618,63 @@ architecture behaviour of ccsds_rxtx_bench is
       end if;
       -- behaviour tests:
         report "FILTERP: START FILTER TESTS" severity note;
+        if (CCSDS_RXTX_BENCH_OUTPUT_SIGNALS_ENABLE = true) then
+          write(samples_csv_output, string'("I samples;Q samples - quantized on " & integer'image(CCSDS_RXTX_BENCH_FILTER0_SIG_QUANT_DEPTH) & " bits / Big-Endian (MSB first) ASCII hexa coded"));
+          writeline(CCSDS_RXTX_BENCH_FILTER0_OUTPUT_CSV_IQ_FILE, samples_csv_output);
+        end if;
         bench_ena_filter0_random_data <= '1';
         wait for CCSDS_RXTX_BENCH_FILTER0_MAPPER_DATA_CLK_PERIOD;
         bench_sti_filter0_mapper_dat_val <= '1';
-        wait for CCSDS_RXTX_BENCH_FILTER0_MAPPER_CLK_PERIOD*12;
+        wait for CCSDS_RXTX_BENCH_FILTER0_BITS_PER_SYMBOL*CCSDS_RXTX_BENCH_FILTER0_MAPPER_DATA_CLK_PERIOD*CCSDS_RXTX_BENCH_FILTER0_BITS_PER_SYMBOL/CCSDS_RXTX_BENCH_FILTER0_MODULATION_TYPE;
+        if (CCSDS_RXTX_BENCH_OUTPUT_SIGNALS_ENABLE = true) then
+          for i in 0 to 200 loop
+            wait for CCSDS_RXTX_BENCH_FILTER0_CLK_PERIOD;
+            if (bench_res_filter0_sam_val = '1') then
+              write(samples_csv_output, convert_std_logic_vector_to_hexa_ascii(bench_res_filter0_sam_i) & ";");
+              write(samples_csv_output, convert_std_logic_vector_to_hexa_ascii(bench_res_filter0_sam_q));
+              write(samples_hex_output, convert_std_logic_vector_to_hexa_ascii(bench_res_filter0_sam_i));
+              write(samples_hex_output, convert_std_logic_vector_to_hexa_ascii(bench_res_filter0_sam_q));
+              writeline(CCSDS_RXTX_BENCH_FILTER0_OUTPUT_CSV_IQ_FILE, samples_csv_output);
+              writeline(CCSDS_RXTX_BENCH_FILTER0_OUTPUT_HEX_IQ_FILE, samples_hex_output);
+              write(samples_hex_i_output, convert_std_logic_vector_to_hexa_ascii(bench_res_filter0_sam_i));
+              write(samples_hex_q_output, convert_std_logic_vector_to_hexa_ascii(bench_res_filter0_sam_q));
+              writeline(CCSDS_RXTX_BENCH_FILTER0_OUTPUT_HEX_I_FILE, samples_hex_i_output);
+              writeline(CCSDS_RXTX_BENCH_FILTER0_OUTPUT_HEX_Q_FILE, samples_hex_q_output);
+            else
+              report "FILTERP: KO - Output samples are not valid" severity warning;
+            end if;
+          end loop;
+        else
+          wait for 200*CCSDS_RXTX_BENCH_FILTER0_CLK_PERIOD;
+        end if;
         if (bench_res_filter0_sam_val = '1') then
           report "FILTERP: OK - Output samples are valid" severity note;
         else
           report "FILTERP: KO - Output samples are not valid" severity warning;
         end if;
-        wait for CCSDS_RXTX_BENCH_FILTER0_MAPPER_CLK_PERIOD*CCSDS_RXTX_BENCH_FILTER0_SYMBOL_WORDS_NUMBER;
+        if (CCSDS_RXTX_BENCH_OUTPUT_SIGNALS_ENABLE = true) then
+          for i in 0 to CCSDS_RXTX_BENCH_FILTER0_SYMBOL_WORDS_NUMBER-1 loop
+            for j in 0 to CCSDS_RXTX_BENCH_FILTER0_MAPPER_CLK_PERIOD/CCSDS_RXTX_BENCH_FILTER0_CLK_PERIOD-1 loop
+              wait for CCSDS_RXTX_BENCH_FILTER0_CLK_PERIOD;
+              if (bench_res_filter0_sam_val = '1') then
+                write(samples_csv_output, convert_std_logic_vector_to_hexa_ascii(bench_res_filter0_sam_i) & ";");
+                write(samples_csv_output, convert_std_logic_vector_to_hexa_ascii(bench_res_filter0_sam_q));
+                write(samples_hex_output, convert_std_logic_vector_to_hexa_ascii(bench_res_filter0_sam_i));
+                write(samples_hex_output, convert_std_logic_vector_to_hexa_ascii(bench_res_filter0_sam_q));
+                writeline(CCSDS_RXTX_BENCH_FILTER0_OUTPUT_CSV_IQ_FILE, samples_csv_output);
+                writeline(CCSDS_RXTX_BENCH_FILTER0_OUTPUT_HEX_IQ_FILE, samples_hex_output);
+                write(samples_hex_i_output, convert_std_logic_vector_to_hexa_ascii(bench_res_filter0_sam_i));
+                write(samples_hex_q_output, convert_std_logic_vector_to_hexa_ascii(bench_res_filter0_sam_q));
+                writeline(CCSDS_RXTX_BENCH_FILTER0_OUTPUT_HEX_I_FILE, samples_hex_i_output);
+                writeline(CCSDS_RXTX_BENCH_FILTER0_OUTPUT_HEX_Q_FILE, samples_hex_q_output);
+              else
+                report "FILTERP: KO - Output samples are not valid" severity warning;
+              end if;
+            end loop;
+          end loop;
+        else
+          wait for CCSDS_RXTX_BENCH_FILTER0_MAPPER_CLK_PERIOD*CCSDS_RXTX_BENCH_FILTER0_SYMBOL_WORDS_NUMBER;
+        end if;
         bench_sti_filter0_mapper_dat_val <= '0';
         bench_ena_filter0_random_data <= '0';
         wait for CCSDS_RXTX_BENCH_FILTER0_MAPPER_CLK_PERIOD*12;
@@ -2151,6 +2216,7 @@ architecture behaviour of ccsds_rxtx_bench is
     -- r/w: 
     SRRCP : process
     constant srrc_zero: std_logic_vector(CCSDS_RXTX_BENCH_SRRC0_SIG_QUANT_DEPTH-1 downto 0) := (others => '0');
+    variable samples_hex_output: line;
       begin
       -- let the system free run
         wait for (CCSDS_RXTX_BENCH_START_FREE_RUN_DURATION/2);
@@ -2180,16 +2246,52 @@ architecture behaviour of ccsds_rxtx_bench is
         bench_sti_srrc0_sam_val <= '1';
         wait for CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
         bench_sti_srrc0_sam <= (others => '0');
-        wait for 400*CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
+        if (CCSDS_RXTX_BENCH_OUTPUT_SIGNALS_ENABLE = true) then
+          for i in 0 to 400 loop
+            wait for CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
+            if (bench_res_srrc0_sam_val = '1') then
+              write(samples_hex_output, convert_std_logic_vector_to_hexa_ascii(bench_res_srrc0_sam));
+              writeline(CCSDS_RXTX_BENCH_SRRC0_OUTPUT_HEX_FILE, samples_hex_output);
+            else
+              report "SRRCP: KO - SRRC samples are not valid" severity warning;
+            end if;
+          end loop;
+        else
+          wait for 400*CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
+        end if;
         bench_sti_srrc0_sam(0) <= '1';
         wait for CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
         bench_sti_srrc0_sam <= (others => '0');
-        wait for 400*CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
+        if (CCSDS_RXTX_BENCH_OUTPUT_SIGNALS_ENABLE = true) then
+          for i in 0 to 400 loop
+            wait for CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
+            if (bench_res_srrc0_sam_val = '1') then
+              write(samples_hex_output, convert_std_logic_vector_to_hexa_ascii(bench_res_srrc0_sam));
+              writeline(CCSDS_RXTX_BENCH_SRRC0_OUTPUT_HEX_FILE, samples_hex_output);
+            else
+              report "SRRCP: KO - SRRC samples are not valid" severity warning;
+            end if;
+          end loop;
+        else
+          wait for 400*CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
+        end if;
         bench_sti_srrc0_sam(CCSDS_RXTX_BENCH_SRRC0_SIG_QUANT_DEPTH-1) <= '1';
         bench_sti_srrc0_sam(CCSDS_RXTX_BENCH_SRRC0_SIG_QUANT_DEPTH-2 downto 0) <= (others => '0');
         wait for CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
         bench_sti_srrc0_sam <= (others => '0');
-        wait for 400*CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
+        if (CCSDS_RXTX_BENCH_OUTPUT_SIGNALS_ENABLE = true) then
+          for i in 0 to 400 loop
+            wait for CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
+            if (bench_res_srrc0_sam_val = '1') then
+              write(samples_hex_output, convert_std_logic_vector_to_hexa_ascii(bench_res_srrc0_sam));
+              writeline(CCSDS_RXTX_BENCH_SRRC0_OUTPUT_HEX_FILE, samples_hex_output);
+            else
+              report "SRRCP: KO - SRRC samples are not valid" severity warning;
+            end if;
+          end loop;
+        else
+          wait for 400*CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
+        end if;
         bench_sti_srrc0_sam_val <= '0';
       -- final state tests:
         if (bench_res_srrc0_sam_val = '0') then

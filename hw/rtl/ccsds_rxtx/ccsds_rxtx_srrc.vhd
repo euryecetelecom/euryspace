@@ -19,8 +19,8 @@
 ---- 2016/11/06: initial release
 -------------------------------
 -- Filter impulse response - SRRC(t):
--- t = 0 => SRRC(0) = 1
--- t = +/-Ts/(4*B) => SRRC(+/-Ts/(4*B)) = sin(PI.(1-B)/(4.B)) + cos(PI.(1+B)/(4.B))
+-- t = 0 => SRRC(0) = (1-B + 4*B/PI)
+-- t = +/-Ts/(4*B) => SRRC(+/-Ts/(4*B)) = (B/racine(2) * (1+2/PI) * sin(PI/(4*B)) + (1-2/PI) * cos(PI/(4*B)))
 -- t /= 0 and t /= Ts/(4*B) => SRRC(t) =  (sin(PI.t.(1-B)/Ts) + 4.B.t.cos(PI.t.(1+B)/Ts)/Ts) / (PI.t.(1-((4.B.t)/Ts)^2)/Ts)
 -- t: time
 -- Ts: symbol period
@@ -62,7 +62,9 @@ architecture rtl of ccsds_rxtx_srrc is
   constant CCSDS_RXTX_SRRC_RESPONSE_SYMBOL_CYCLES: integer:= 6; -- in symbol Time
   constant CCSDS_RXTX_SRRC_FIR_COEFFICIENTS_NUMBER: integer := CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO*CCSDS_RXTX_SRRC_RESPONSE_SYMBOL_CYCLES+1;
   constant CCSDS_RXTX_SRRC_SAMPLES_NUMBER: integer := (CCSDS_RXTX_SRRC_FIR_COEFFICIENTS_NUMBER-1)*2+1;
-  constant CCSDS_RXTX_SRRC_NORMALIZATION_GAIN: real := 2.0**(real(CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH) - real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO)**0.5) - 1.0; -- Exact value should be FIR coefficients RMS Gain = Sqrt(Sum(Pow(coef,2)))) * Full Scale Value
+  constant CCSDS_RXTX_SRRC_SPECIFIC_COEFFICIENT_VALUE_T0: real := (1.0 - CCSDS_RXTX_SRRC_ROLL_OFF + 4.0 * CCSDS_RXTX_SRRC_ROLL_OFF / MATH_PI);
+  constant CCSDS_RXTX_SRRC_SPECIFIC_COEFFICIENT_VALUE_TS: real := (CCSDS_RXTX_SRRC_ROLL_OFF / sqrt(2.0) * (1.0 + 2.0 / MATH_PI) * sin (MATH_PI / (4.0 * CCSDS_RXTX_SRRC_ROLL_OFF)) + (1.0 - 2.0 / MATH_PI) * cos (MATH_PI / (4.0 * CCSDS_RXTX_SRRC_ROLL_OFF)));
+  constant CCSDS_RXTX_SRRC_NORMALIZATION_GAIN: real := (2.0**(CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH - 1) - 1.0) / CCSDS_RXTX_SRRC_SPECIFIC_COEFFICIENT_VALUE_T0; -- Exact value should be FIR coefficients RMS Gain / T0 Gain = Sqrt(Sum(Pow(coef,2)))) * Full Scale Value
   constant CCSDS_RXTX_SRRC_SIG_IN_ADD_SIZE: integer := CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH+1;
   constant CCSDS_RXTX_SRRC_SIG_MUL_SIZE: integer := CCSDS_RXTX_SRRC_SIG_IN_ADD_SIZE+CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH;
   constant CCSDS_RXTX_SRRC_SIG_OUT_ADD_SIZE: integer := CCSDS_RXTX_SRRC_SIG_MUL_SIZE;
@@ -82,19 +84,20 @@ architecture rtl of ccsds_rxtx_srrc is
   begin
     -- SRRC coefficients generation
     -- At t = 0
-    srrc_coefficients(0) <= to_signed(integer(CCSDS_RXTX_SRRC_NORMALIZATION_GAIN),CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH);
+    srrc_coefficients(0) <= to_signed(integer(CCSDS_RXTX_SRRC_NORMALIZATION_GAIN * CCSDS_RXTX_SRRC_SPECIFIC_COEFFICIENT_VALUE_T0),CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH);
     -- Coefficients are symetrical / they are computed only for positive time response
     SRRC_COEFS_GENERATOR: for coefficient_counter in 1 to CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO*CCSDS_RXTX_SRRC_RESPONSE_SYMBOL_CYCLES generate
       -- At t = Ts/(4*B)
       SRRC_SPECIFIC_COEFS: if (real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO)/real(coefficient_counter) = 4.0*CCSDS_RXTX_SRRC_ROLL_OFF) generate
         SRRC_COEFS_WINDOW_DIRICHLET: if (CCSDS_RXTX_SRRC_APODIZATION_WINDOW_TYPE = 0) generate
-          srrc_coefficients(coefficient_counter) <= to_signed(integer(CCSDS_RXTX_SRRC_NORMALIZATION_GAIN * (sin(MATH_PI * (1.0 - CCSDS_RXTX_SRRC_ROLL_OFF) / (4.0 * CCSDS_RXTX_SRRC_ROLL_OFF)) + cos(MATH_PI * (1.0 + CCSDS_RXTX_SRRC_ROLL_OFF) / (4.0 * CCSDS_RXTX_SRRC_ROLL_OFF)))),CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH);
+          srrc_coefficients(coefficient_counter) <= to_signed(integer(CCSDS_RXTX_SRRC_NORMALIZATION_GAIN * CCSDS_RXTX_SRRC_SPECIFIC_COEFFICIENT_VALUE_TS),CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH);
         end generate SRRC_COEFS_WINDOW_DIRICHLET;
         SRRC_COEFS_WINDOW_HAMMING: if (CCSDS_RXTX_SRRC_APODIZATION_WINDOW_TYPE = 1) generate
-          srrc_coefficients(coefficient_counter) <= to_signed(integer((0.54 + 0.46 * cos(2.0 * MATH_PI * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_FIR_COEFFICIENTS_NUMBER-1))) * CCSDS_RXTX_SRRC_NORMALIZATION_GAIN * (sin(MATH_PI * (1.0 - CCSDS_RXTX_SRRC_ROLL_OFF) / (4.0 * CCSDS_RXTX_SRRC_ROLL_OFF)) + cos(MATH_PI * (1.0 + CCSDS_RXTX_SRRC_ROLL_OFF) / (4.0 * CCSDS_RXTX_SRRC_ROLL_OFF)))),CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH);
+          srrc_coefficients(coefficient_counter) <= to_signed(integer((0.53836 + 0.46164 * cos(2.0 * MATH_PI * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_FIR_COEFFICIENTS_NUMBER-1))) * CCSDS_RXTX_SRRC_NORMALIZATION_GAIN * CCSDS_RXTX_SRRC_SPECIFIC_COEFFICIENT_VALUE_TS),CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH);
         end generate SRRC_COEFS_WINDOW_HAMMING;
         SRRC_COEFS_WINDOW_BARTLETT: if (CCSDS_RXTX_SRRC_APODIZATION_WINDOW_TYPE = 2) generate
-          srrc_coefficients(coefficient_counter) <= to_signed(integer((1.0 - abs((real(coefficient_counter) - real(CCSDS_RXTX_SRRC_FIR_COEFFICIENTS_NUMBER-1)/2.0) / real(CCSDS_RXTX_SRRC_FIR_COEFFICIENTS_NUMBER-1)/2.0)) * CCSDS_RXTX_SRRC_NORMALIZATION_GAIN * (sin(MATH_PI * (1.0 - CCSDS_RXTX_SRRC_ROLL_OFF) / (4.0 * CCSDS_RXTX_SRRC_ROLL_OFF)) + cos(MATH_PI * (1.0 + CCSDS_RXTX_SRRC_ROLL_OFF) / (4.0 * CCSDS_RXTX_SRRC_ROLL_OFF)))),CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH);
+          srrc_coefficients(0) <= to_signed(integer(CCSDS_RXTX_SRRC_NORMALIZATION_GAIN * CCSDS_RXTX_SRRC_SPECIFIC_COEFFICIENT_VALUE_T0),CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH);
+          srrc_coefficients(coefficient_counter) <= to_signed(integer((1.0 - abs((real(coefficient_counter) - real(CCSDS_RXTX_SRRC_FIR_COEFFICIENTS_NUMBER-1)/2.0) / real(CCSDS_RXTX_SRRC_FIR_COEFFICIENTS_NUMBER-1)/2.0)) * CCSDS_RXTX_SRRC_NORMALIZATION_GAIN * CCSDS_RXTX_SRRC_SPECIFIC_COEFFICIENT_VALUE_TS),CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH);
         end generate SRRC_COEFS_WINDOW_BARTLETT;
       end generate SRRC_SPECIFIC_COEFS;
       -- At t > 0 and t /= Ts/(4*B)
@@ -103,7 +106,7 @@ architecture rtl of ccsds_rxtx_srrc is
           srrc_coefficients(coefficient_counter) <= to_signed(integer(CCSDS_RXTX_SRRC_NORMALIZATION_GAIN * (sin(MATH_PI * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO) * (1.0 - CCSDS_RXTX_SRRC_ROLL_OFF)) + 4.0 * CCSDS_RXTX_SRRC_ROLL_OFF * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO) * cos(MATH_PI * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO) * (1.0 + CCSDS_RXTX_SRRC_ROLL_OFF))) / (MATH_PI * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO) * (1.0 - (4.0 * CCSDS_RXTX_SRRC_ROLL_OFF * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO))**2))),CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH);
         end generate SRRC_COEFS_WINDOW_DIRICHLET;
         SRRC_COEFS_WINDOW_HAMMING: if (CCSDS_RXTX_SRRC_APODIZATION_WINDOW_TYPE = 1) generate
-          srrc_coefficients(coefficient_counter) <= to_signed(integer((0.54 + 0.46 * cos(2.0 * MATH_PI * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_FIR_COEFFICIENTS_NUMBER-1))) *CCSDS_RXTX_SRRC_NORMALIZATION_GAIN * (sin(MATH_PI * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO) * (1.0 - CCSDS_RXTX_SRRC_ROLL_OFF)) + 4.0 * CCSDS_RXTX_SRRC_ROLL_OFF * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO) * cos(MATH_PI * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO) * (1.0 + CCSDS_RXTX_SRRC_ROLL_OFF))) / (MATH_PI * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO) * (1.0 - (4.0 * CCSDS_RXTX_SRRC_ROLL_OFF * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO))**2))),CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH);
+          srrc_coefficients(coefficient_counter) <= to_signed(integer((0.53836 + 0.46164 * cos(2.0 * MATH_PI * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_FIR_COEFFICIENTS_NUMBER-1))) * CCSDS_RXTX_SRRC_NORMALIZATION_GAIN * (sin(MATH_PI * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO) * (1.0 - CCSDS_RXTX_SRRC_ROLL_OFF)) + 4.0 * CCSDS_RXTX_SRRC_ROLL_OFF * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO) * cos(MATH_PI * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO) * (1.0 + CCSDS_RXTX_SRRC_ROLL_OFF))) / (MATH_PI * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO) * (1.0 - (4.0 * CCSDS_RXTX_SRRC_ROLL_OFF * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO))**2))),CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH);
         end generate SRRC_COEFS_WINDOW_HAMMING;
         SRRC_COEFS_WINDOW_BARTLETT: if (CCSDS_RXTX_SRRC_APODIZATION_WINDOW_TYPE = 2) generate
           srrc_coefficients(coefficient_counter) <= to_signed(integer((1.0 - abs((real(coefficient_counter) - real(CCSDS_RXTX_SRRC_FIR_COEFFICIENTS_NUMBER-1)/2.0) / real(CCSDS_RXTX_SRRC_FIR_COEFFICIENTS_NUMBER-1)/2.0)) * CCSDS_RXTX_SRRC_NORMALIZATION_GAIN * (sin(MATH_PI * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO) * (1.0 - CCSDS_RXTX_SRRC_ROLL_OFF)) + 4.0 * CCSDS_RXTX_SRRC_ROLL_OFF * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO) * cos(MATH_PI * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO) * (1.0 + CCSDS_RXTX_SRRC_ROLL_OFF))) / (MATH_PI * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO) * (1.0 - (4.0 * CCSDS_RXTX_SRRC_ROLL_OFF * real(coefficient_counter) / real(CCSDS_RXTX_SRRC_OVERSAMPLING_RATIO))**2))),CCSDS_RXTX_SRRC_SIG_QUANT_DEPTH);
