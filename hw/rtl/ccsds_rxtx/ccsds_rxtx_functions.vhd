@@ -15,6 +15,7 @@
 ---- 2015/12/28: initial release
 ---- 2016/10/20: added reverse_std_logic_vector function + rework sim_generate_random_std_logic_vector for > 32 bits vectors
 ---- 2016/11/17: added convert_boolean_to_std_logic function
+---- 2017/01/15: added convert_std_logic_vector_array_to_std_logic_vector
 -------------------------------
 
 -- libraries used
@@ -22,10 +23,12 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
+use work.ccsds_rxtx_types.all;
 
 package ccsds_rxtx_functions is
 -- synthetizable functions
   function convert_boolean_to_std_logic(input: in boolean) return std_logic;
+  function convert_std_logic_vector_array_to_std_logic_vector(std_logic_vector_array_in: in std_logic_vector_array; current_row: in integer) return std_logic_vector;
   function reverse_std_logic_vector (input: in std_logic_vector) return std_logic_vector;
 -- simulation / testbench only functions
   function convert_std_logic_vector_to_hexa_ascii(input: in std_logic_vector) return string;
@@ -42,6 +45,16 @@ package body ccsds_rxtx_functions is
       return '0';
     end if;
   end convert_boolean_to_std_logic;
+
+  function convert_std_logic_vector_array_to_std_logic_vector(std_logic_vector_array_in: in std_logic_vector_array; current_row: in integer) return std_logic_vector is
+  variable result: std_logic_vector(std_logic_vector_array_in'range(2));
+  begin
+    for i in std_logic_vector_array_in'range(2) loop
+      result(i) := std_logic_vector_array_in(current_row, i);
+--      report "Read: " & std_logic'image(std_logic_vector_array_in(current_row, i)) severity note;
+    end loop;
+    return result;
+  end;
   
   function reverse_std_logic_vector (input: in std_logic_vector) return std_logic_vector is
   variable result: std_logic_vector(input'range);
