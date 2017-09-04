@@ -1,0 +1,125 @@
+#!/bin/bash
+################################
+# Project: EurySPACE CCSDS RX/TX
+# Design Name: euryspacectl
+# Version: 1.0.0
+# Description:
+# EurySPACE management tool
+# Validated on CentOS 7
+# TODO: Ubuntu 16 LTS
+################################
+# Author(s):
+# Guillaume REMBERT
+################################
+# Licence:
+# MIT
+################################
+# Changes list:
+# 2017/09/04: initial release
+################################
+
+#Conf for sources / builds
+#Install environment (dev / prod) + all / only sub-parts
+
+#############
+# FUNCTIONS #
+#############
+
+function show_help {
+  echo "EurySPACE control tool"
+  echo "Usage example:"
+  echo "euryspacectl -a ACTION [-d DESTINATION] [-e ENVIRONMENT] [-o OPERATING_SYSTEM] [-t TARGET] [-u USER]"
+  echo "ACTION: install"
+  echo "DESTINATION: destination folder (default: /home/euryspace)"
+  echo "ENVIRONMENT: dev|development, prod|production (default value)"
+  echo "OPERATING_SYSTEM: centos7 (default value), ubuntu16"
+  echo "TARGET: all (default value), space|space_segment, ground|ground_segment, user|user_segment"
+  echo "USER: user used to start (default: astronaut)"
+}
+
+START_TIME=$(date +%s)
+
+####################
+# SCRIPT VARIABLES #
+####################
+EURYSPACE_PRODUCTION=true
+EURYSPACE_OPERATING_SYSTEM="centos7"
+EURYSPACE_USER="astronaut"
+
+#########################
+# SCRIPT INITIALISATION #
+#########################
+#Check script is run as root
+if [[ $EUID -ne 0 ]]; then
+  echo "This script must be run as root" 1>&2
+  exit 1
+fi
+#Get configuration variables and functions
+SCRIPT_COMMAND=$(readlink -f "$0")
+SCRIPT_PATH=$(dirname "$SCRIPT_COMMAND")
+#Should not be changed except if you changed sw folder layout
+SCRIPT_CONF_PATH=$SCRIPT_PATH/cfg/sw/euryspace.conf
+#Get input parameters
+while getopts :a:e:ht: ARGUMENT
+do
+  case "${ARGUMENT}" in
+    a) SCRIPT_ACTION=${OPTARG}
+      case "${SCRIPT_ACTION}" in
+        install)
+        ;;
+        *)
+          echo "Unknown action: ${SCRIPT_ACTION}" 1>&2
+          show_help
+          exit 1
+        ;;
+      esac
+    ;;
+    d) EURYSPACE_DESTINATION=${OPTARG}
+    ;;
+    e) ENVIRONMENT=${OPTARG}
+      case "${ENVIRONMENT}" in
+        dev|development)
+          EURYSPACE_PRODUCTION=false
+        ;;
+        prod|production)
+          echo "Production environment is not yet managed" 1>&2
+          exit 1
+        ;;
+        *)
+          echo "Unknown enviroment: ${ENVIRONMENT}" 1>&2
+          show_help
+          exit 1
+      esac
+    ;;
+    h)
+      show_help
+      exit 0
+    ;;
+    o) EURYSPACE_OPERATING_SYSTEM=${OPTARG}
+      case "${EURYSPACE_OPERATING_SYSTEM}" in
+        ubuntu16|centos7)
+        ;;
+        *)
+          echo "Unmanaged operating system: ${EURYSPACE_OPERATING_SYSTEM}" 1>&2
+          show_help
+          exit 1
+      esac
+    ;;
+    t) TARGET=${OPTARG}
+    ;;
+    u) EURYSPACE_USER=${OPTARG}
+    ;;
+    ?)
+      echo "Unknown argument: ${OPTARG}" 1>&2
+      show_help
+      exit 1
+    ;;
+  esac
+done
+
+case "${SCRIPT_ACTION}" in
+  install)
+    $SCRIPT_PATH/sw/src/tools/euryspace_install.sh ${EURYSPACE_OPERATING_SYSTEM} ${EURYSPACE_PRODUCTION} ${EURYSPACE_USER} ${EURYSPACE_DESTINATION}
+  ;;
+esac
+

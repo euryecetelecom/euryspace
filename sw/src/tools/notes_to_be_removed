@@ -1,0 +1,146 @@
+#NOTES A NETTOYER
+
+#GHDL HINTS
+#generate libs
+#ghdl -i *.vhd
+#analyse and compile
+#ghdl -a *.vhd
+#build
+#ghdl -e ccsds_rxtx_top
+#run
+#ghdl -r ccsds_rxtx_top --vcd=test.vcd
+#./ccsds_rxtx_top --vcd=test.vcd
+#display
+#ghdl -d
+
+
+# TESTS WITH QEMU
+#qemu-system-or32
+#-net none
+#-nographic
+#-m 32M 
+#-kernel /monfichierelf
+#-append 'rw init=/bin/sh panic=1 PATH=/bin:/sbin root=/dev/sda console=ttyAMA0'
+#-initrd /monfichierinitramfs
+#-serial tcp::10000,server
+
+
+#OR1K HINTS
+# Build for simulation
+#or1k-elf-gcc hello.c -o hello.elf.sim
+# Build for specific SoC
+#or1k-elf-gcc hello.c -o hello.elf.de0_nano -mboard=de0_nano
+# Test in or1ksim
+#or1k-elf-sim -f /or1k/linux/arch/openrisc/or1ksim.cfg /or1k/app_baremetal/hello.elf.sim
+# Test in qemu-system-or32
+#qemu-system-or32 -serial mon:stdio -net none -nographic -m 32M -kernel /or1k/app_baremetal/hello.elf.de0_nano
+
+
+#LINUX HINTS
+  # Test in or1ksim
+  #or1k-elf-sim -f /or1k/linux/arch/openrisc/or1ksim.cfg /or1k/linux/vmlinux
+  # Test: console access through telnet / Result: Linux shell
+  #telnet localhost 10084
+  # Test in qemu-system-or32
+#qemu-system-or32 -serial stdio -net none -nographic -m 32M -kernel /or1k/vmlinux
+#-S: freeze cpu on startup (resume with c when debugging)
+#-s: wait for gdb connection (on 1234 local socket)
+#or1k-elf-gdb /or1k/linux/vmlinux -ex 'target remote localhost:1234'
+#readelf -e /or1k/linux/vmlinux.elf.
+
+
+# Build SoC*
+# *: FIXME - DOESN'T WORK WITHOUT INTERNET CONNEXION + DESCRIBE WHAT IT DOES (analysing, synthesis, fitting, assembling)
+#fusesoc build de0_nano
+
+# Simulate RTL SoC
+#fusesoc sim --force euryspace --elf-load /or1k/app_baremetal/hello.elf.sim --vcd
+#fusesoc --verbose sim --force --testbench euryspace_tb euryspace --elf-load /or1k/app_baremetal/hello.elf.de0_nano --vcd
+# Display and analyse results
+#gtkwave build_socs/build/euryspace/sim-icarus/testlog.vcd &
+
+# Flash FPGA
+#[ROOT]
+#killall jtagd
+#/home/altera/15.0/quartus/bin/jtagd
+#[USER]
+#fusesoc pgm de0_nano
+
+
+# Connect to JTAG debug
+#[ROOT]
+#openocd -f /or1k/openocd/tcl/interface/altera-usb-blaster.cfg -f /or1k/openocd/tcl/board/or1k_generic.cfg
+#[USER]
+# Connect to openocd-bridge
+#telnet localhost 4444
+# Test SoC
+#or1200.cpu curstate
+# Start SoC
+#reset
+
+
+###### EMULATOR ######
+#git submodule update --init dtc
+#./configure
+#make -j10
+#make install
+
+###### CREATE A BOOTLOADER ######
+#export ARCH=openrisc
+#export CROSS_COMPILE=or1k-elf-
+#make openrisc-generic_defconfig
+#make menuconfig
+
+# LOAD SOFTWARE
+# OPENOCD
+halt; load_image /or1k/linux/vmlinux; reg npc 0x100; reset
+halt; load_image /vmlinux-de0_nano; reg npc 0x100; reset
+halt; load_image /euryspace/tests/testouille/src/testouille; reg npc 0x100; reset
+
+# DEBUG/ GDB THROUGH OPENOCD GDBSERVER
+or1k-elf-gdb /euryspace/linux/vmlinux
+target remote localhost:3333
+load
+jump *0x100
+continue
+
+spr npc 0x100
+
+or1k-elf-gdb /or1k/linux/vmlinux -ex 'target remote localhost:3333'
+
+#Inspect stack in nice view
+layout split	
+
+#display code
+l hello.c:1
+# add breakpoints
+b 6
+# display
+n
+
+#TEST SOC + LINUX
+
+--> pb de drivers non OK
+
+Pour tester le soc:
+
+Pour avoir la sortie tty:
+[ROOT]* fixme / permission for user to be done
+minicom -D /dev/ttyUSB0
+screen /dev/ttyUSB0 115200
+
+
+#TO TUNE THE WISHBONE INTERCO / NEED TO REGENERATE THE INTERCO MATRIX AFTER TUNING A CONFIGURATION FILE
+#SPECIFIC TOOL
+./orpsoc-cores/cores/wb_intercon/sw/wb_intercon_gen ./orpsoc-cores/systems/euryspace/data/wb_intercon.conf ./orpsoc-cores/systems/euryspace/rtl/verilog/wb_intercon.v
+
+
+#PERMANENT FLASH SOC + SOFT (UBOOT ∕ PGR)
+# ADD TO PATH UBOOT TOOLS
+/or1k/u-boot/tools
+# GO TO orpsoc-cores/systems/de0_nano/utils
+./flash_helper.sh /or1k/build_socs/build/de0_nano/bld-quartus/de0_nano.sof /or1k/app_baremetal/hello.elf.de0_nano
+quartus_pgm --mode=jtag -o pi\;de0_nano.jic
+
+
+
