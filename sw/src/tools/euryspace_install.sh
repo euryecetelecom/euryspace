@@ -14,6 +14,7 @@
 ################################
 # Changes list:
 # 2017/09/04: initial release
+# 2017/09/30: fix many compilation issues
 ################################
 
 set -x
@@ -24,10 +25,12 @@ EURYSPACE_OPERATING_SYSTEM=$1
 EURYSPACE_PRODUCTION=$2
 EURYSPACE_USER=$3
 EURYSPACE_DESTINATION=$4
-EURYSPACE_BUILD_PARALLELISM=9
+EURYSPACE_BUILD_PARALLELISM=$5
+
+#TODO: add make check
 
 ###### TOOLS AND SOURCE CODE REPOSITORIES ######
-#TODO: merge or1k-gcc + or1k-linux with upstream
+#TODO: merge or1k-gcc + binutils-gdb + or1k-linux with upstream
 ###### fusesoc
 ## description: SoC build and sources management tool
 ## repository: https://github.com/olofk/fusesoc.git
@@ -43,7 +46,7 @@ EURYSPACE_REPO_NEWLIB="https://github.com/euryecetelecom/newlib.git"
 ###### or1k-gcc
 ## description: compiler for arch or1k (cross-compilation)
 ## repository: https://github.com/openrisc/or1k-gcc.git
-#EURYSPACE_REPO_OR1K_GCC="https://github.com/euryecetelecom/or1k-gcc.git"
+EURYSPACE_REPO_OR1K_GCC="https://github.com/euryecetelecom/or1k-gcc.git"
 ###### or1k-src
 ## description: cross-linker and cross-assembler for target platform (binutils)
 ## repository: https://github.com/openrisc/or1k-src.git
@@ -71,7 +74,7 @@ EURYSPACE_REPO_QEMU="https://github.com/euryecetelecom/qemu.git"
 ###### linux
 ## description: embedded linux to use with or1k
 ## repository: https://github.com/openrisc/linux.git
-EURYSPACE_REPO_LINUX="https://github.com/euryecetelecom/linux.git"
+EURYSPACE_REPO_OR1K_LINUX="https://github.com/euryecetelecom/or1k-linux.git"
 ###### binutils-gdb
 ## description: software debugger
 ## repository: git://sourceware.org/git/binutils-gdb.git
@@ -91,7 +94,7 @@ EURYSPACE_REPO_OPENOCD="https://github.com/euryecetelecom/openocd.git"
 ## description: generation and injection of layouts and build files for ALTERA FPGA platforms
 ## repository:* https://github.com/altera/$arch/??.git
 # *: FIXME - possible to distribute binaries of vendors?
-###### xilinx-iselibstdc++-devel
+###### xilinx-ise
 ## description: generation and injection of layouts and build files for XILINX FPGA platforms
 ## repository:* https://github.com/xilinx/$arch/??.git
 # *: FIXME - possible to distribute binaries of vendors?
@@ -112,9 +115,13 @@ EURYSPACE_REPO_GCC="https://github.com/euryecetelecom/gcc.git"
 ## repository: https://github.com/openrisc/mor1kx.git
 EURYSPACE_REPO_MOR1KX="https://github.com/euryecetelecom/mor1kx.git"
 ##### isl
-## description: Graphite loop optimizations for GCC building
+## description: graphite loop optimizations for GCC building
 ## repository: ftp://gcc.gnu.org/pub/gcc/infrastructure/isl-0.16.1.tar.bz2
 EURYSPACE_PACKAGE_ISL="ftp://gcc.gnu.org/pub/gcc/infrastructure/isl-0.16.1.tar.bz2"
+##### xenomai
+## description: real time capabilities for linux
+## repository: https://git.xenomai.org/xenomai-3.git
+EURYSPACE_REPO_XENOMAI="https://github.com/euryecetelecom/xenomai.git"
 
 ###### ENVIRONMENT SETUP ######
 getent passwd ${EURYSPACE_USER}  > /dev/null
@@ -129,49 +136,53 @@ then
       yum -y install epel-release
       ### STAGE 0: installation of initial development tools
       echo "Installing required tools"
-      yum -y install glibc-devel gcc gcc-c++ libstdc++-static libstdc++-devel flex bison patch texinfo ncurses-devel mpfr-devel libmpc-devel libzip-devel expat-devel expat-static elfutils-libelf-devel gperf libftdi libftdi-devel libftdi-c++ libftdi-c++-devel libusb libusb-devel gcc-gnat zlib-devel glib2-devel pixman-devel git wget bzip2 autogen
+      yum -y install glibc-devel gcc gcc-c++ libstdc++-static libstdc++-devel flex bison patch texinfo ncurses-devel libzip-devel expat-devel expat-static elfutils-libelf-devel gperf libftdi libftdi-devel libftdi-c++ libftdi-c++-devel libusb libusb-devel gcc-gnat zlib-devel glib2-devel pixman-devel git wget bzip2 autogen
     ;;
     ubuntu16)
-      apt-get install 
+#FIXME: packages for ubuntu16
+      apt-get install
     ;;
   esac
   #Preparing target path and enviroment
   echo "Preparing target build directories and environment setup"
   mkdir -p ${EURYSPACE_DESTINATION}/or1k-toolchain/bin ${EURYSPACE_DESTINATION}/or1k-toolchain/src ${EURYSPACE_DESTINATION}/tools/bin ${EURYSPACE_DESTINATION}/tools/src ${EURYSPACE_DESTINATION}/linux/src ${EURYSPACE_DESTINATION}/linux/elf
   chown -R ${EURYSPACE_USER} ${EURYSPACE_DESTINATION}
-  PATH=$PATH:${EURYSPACE_DESTINATION}/or1k-toolchain/bin:${EURYSPACE_DESTINATION}/tools/bin
-  su ${EURYSPACE_USER} -c "export PATH=$PATH:${EURYSPACE_DESTINATION}/or1k-toolchain/bin:${EURYSPACE_DESTINATION}/tools/bin"
-  cd ${EURYSPACE_DESTINATION}/or1k-toolchain/src && wget ${EURYSPACE_PACKAGE_ISL} && tar -xjf isl-*.bz2 && mkdir build_isl && cd build_isl && ../isl-*/configure && make -j${EURYSPACE_BUILD_PARALLELISM} && make install
+  export PATH=$PATH:${EURYSPACE_DESTINATION}/or1k-toolchain/bin:${EURYSPACE_DESTINATION}/tools/bin
   ### STAGE 1: set-up or1k-src / arch=or1k-elf bootstrap only
   su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/or1k-toolchain/src && git clone ${EURYSPACE_REPO_BINUTILS_GDB}"
   su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/or1k-toolchain/src && mkdir build_or1k-binutils-gdb && cd build_or1k-binutils-gdb && ../binutils-gdb/configure --target=or1k-elf --prefix=${EURYSPACE_DESTINATION}/or1k-toolchain --enable-shared --disable-itcl --disable-tk --disable-tcl --disable-winsup --disable-gdbtk --disable-libgui --disable-rda --disable-sid --disable-sim --disable-gdb --with-sysroot --disable-newlib --disable-libgloss --disable-werror && make -j${EURYSPACE_BUILD_PARALLELISM} && make install"
+#&& make check  KO
   # Test: launch binary / Result: version of ld
   su ${EURYSPACE_USER} -c "or1k-elf-ld --version"
   ### STAGE 1: set-up or1k-gcc / arch=or1k-elf bootstrap only
-  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/or1k-toolchain/src && git clone ${EURYSPACE_REPO_GCC}"
-  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/or1k-toolchain/src && mkdir build_or1k-gcc && cd build_or1k-gcc && ../or1k-gcc/configure --target=or1k-elf --prefix=/${EURYSPACE_DESTINATION}/or1k-toolchain --enable-languages=c --disable-shared --disable-libssp && make -j${EURYSPACE_BUILD_PARALLELISM} && make install"
+  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/or1k-toolchain/src && git clone ${EURYSPACE_REPO_OR1K_GCC}"
+  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/or1k-toolchain/src/or1k-gcc && ./contrib/download_prerequisites && tar -xjf isl-*.bz2 && tar -xjf gmp-*.bz2 && tar -xzf mpc-*.tar.gz && tar -xjf mpfr-*.bz2"
+  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/or1k-toolchain/src && mkdir build_or1k-gcc && cd build_or1k-gcc && ../or1k-gcc/configure --target=or1k-elf --prefix=${EURYSPACE_DESTINATION}/or1k-toolchain --enable-languages=c --disable-shared --disable-libssp && make -j${EURYSPACE_BUILD_PARALLELISM} && make install"
+#make test fail
   # Test: launch binary / Result: version of gcc
   su ${EURYSPACE_USER} -c "or1k-elf-gcc --version"
   ### STAGE 2: set-up newlib / arch=or1k-elf
   su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/or1k-toolchain/src && git clone ${EURYSPACE_REPO_NEWLIB}"
-  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/or1k-toolchain/src && mkdir build_newlib && cd build_newlib && ../newlib/configure --target=or1k-elf --prefix=/${EURYSPACE_DESTINATION}/or1k-toolchain && make -j${EURYSPACE_BUILD_PARALLELISM} && make install"
+  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/or1k-toolchain/src && mkdir build_newlib && cd build_newlib && ../newlib/configure --target=or1k-elf --prefix=${EURYSPACE_DESTINATION}/or1k-toolchain && make -j${EURYSPACE_BUILD_PARALLELISM} && make install"
   ### STAGE 2: set-up or1k-gcc / arch=or1k-elf with newlib
   su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/or1k-toolchain/src && mkdir build_or1k-gcc-newlib && cd build_or1k-gcc-newlib && ../or1k-gcc/configure --target=or1k-elf --prefix=/${EURYSPACE_DESTINATION}/or1k-toolchain --enable-languages=c,c++ --disable-shared --disable-libssp --with-newlib && make -j${EURYSPACE_BUILD_PARALLELISM} && make install"
   # Test: launch binary / Result: version of the compiler
   su ${EURYSPACE_USER} -c "or1k-elf-g++ --version"
   ### STAGE 2: set-up or1ksim / arch=or1k-elf
   su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/or1k-toolchain/src && git clone ${EURYSPACE_REPO_OR1KSIM}"
-  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/or1k-toolchain/src && mkdir build_or1ksim && cd build_or1ksim && ../or1ksim/configure --target=or1k-elf --prefix=/${EURYSPACE_DESTINATION}/or1k-toolchain && make -j${EURYSPACE_BUILD_PARALLELISM} && make install"
+  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/or1k-toolchain/src && mkdir build_or1ksim && cd build_or1ksim && ../or1ksim/configure --target=or1k-elf --prefix=${EURYSPACE_DESTINATION}/or1k-toolchain && make -j${EURYSPACE_BUILD_PARALLELISM} && make install"
   # Test: launch binary / Result: version of the simulator
-  su ${EURYSPACE_USER} -c "or1k-elf-sim --version"
-  ### STAGE 2:* set-up gdb / arch=or1k-elf
-  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/or1k-toolchain/src && git clone ${EURYSPACE_REPO_OR1K_BINUTILS_GDB}"
-  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/or1k-toolchain/src && mkdir build_or1k-gdb && cd build_or1k-gdb && ../binutils-gdb/configure --target=or1k-elf --prefix=/${EURYSPACE_DESTINATION}/or1k-toolchain && make -j${EURYSPACE_BUILD_PARALLELISM} && make install"
+#FIXME: simulator version execution stop script execution (failure code returned?)
+#  su ${EURYSPACE_USER} -c "or1k-elf-sim --version"
+  ### STAGE 2: set-up gdb / arch=or1k-elf
+  cd ${EURYSPACE_DESTINATION}/or1k-toolchain/src && wget ${EURYSPACE_PACKAGE_GCC_ISL} && tar -xjf isl-*.bz2 && mkdir build_gcc_isl && cd build_gcc_isl && ../isl-*/configure && make -j${EURYSPACE_BUILD_PARALLELISM} && make install
+  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/or1k-toolchain/src && mkdir build_or1k-gdb && cd build_or1k-gdb && ../binutils-gdb/configure --target=or1k-elf --prefix=${EURYSPACE_DESTINATION}/or1k-toolchain && make -j${EURYSPACE_BUILD_PARALLELISM} && make install"
+#&& make check KO
   # Test: launch binary / Result: version of the simulator
   su ${EURYSPACE_USER} -c "or1k-elf-gdb --version"
-#../or1k-src/configure --target=or1k-elf --prefix=/home/or1k-toolchain --enable-shared --disable-itcl --disable-tk --disable-tcl --disable-winsup --disable-gdbtk --disable-libgui --disable-rda --disable-sid --enable-sim --disable-or1ksim --enable-gdb  --with-sysroot --disable-newlib --disable-libgloss
 #TODO: OR1KTESTS
 ##TODO? / TO BE CLEANED
+#../or1k-src/configure --target=or1k-elf --prefix=/home/or1k-toolchain --enable-shared --disable-itcl --disable-tk --disable-tcl --disable-winsup --disable-gdbtk --disable-libgui --disable-rda --disable-sid --enable-sim --disable-or1ksim --enable-gdb  --with-sysroot --disable-newlib --disable-libgloss
 ### STAGE 3: set-up linux build stuff / arch=or1k-linux-uclibc
 #../or1k-src/configure --target=or1k-linux-uclibc --prefix=$HOME/toolchain --disable-shared --disable-itcl --disable-tk --disable-tcl --disable-winsup --disable-libgui --disable-rda --disable-sid --disable-sim --disable-gdb --with-sysroot --disable-newlib --disable-libgloss --disable-werror
 #make
@@ -206,17 +217,23 @@ then
 
   #Icarus
   su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/tools/src && git clone ${EURYSPACE_REPO_IVERILOG}"
-  #TODO: autoconf
-  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/tools/src && mkdir build_iverilog && cd build_iverilog && ../iverilog/configure --prefix=/${EURYSPACE_DESTINATION}/tools && make -j${EURYSPACE_BUILD_PARALLELISM} && make install"
+#FIXME: autoconf
+#  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/tools/src && mkdir build_iverilog && cd build_iverilog && ../iverilog/configure --prefix=/${EURYSPACE_DESTINATION}/tools && make -j${EURYSPACE_BUILD_PARALLELISM} && make install"
   #GHDL
-#  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/tools/src && git clone ${EURYSPACE_REPO_GCC}"
+  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/tools/src && git clone ${EURYSPACE_REPO_GCC} && cd gcc && git checkout gcc-7_2_0-release"
   su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/tools/src && git clone ${EURYSPACE_REPO_GHDL}"
-  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/tools/src && mkdir build_ghdl && cd ghdl && ./configure --with-gcc=${EURYSPACE_DESTINATION}/or1k-toolchain/src/gcc && make copy-sources && cd ../build_ghdl && ../ghdl/configure --prefix=/${EURYSPACE_DESTINATION}/tools  --enable-languages=c,vhdl --disable-bootstrap --disable-lto --disable-multilib && make -j${EURYSPACE_BUILD_PARALLELISM} && make install"
+  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/tools/src && mkdir build_ghdl && cd ghdl && ./configure --with-gcc=${EURYSPACE_DESTINATION}/tools/src/gcc && make copy-sources && cd ../build_ghdl && ../ghdl/configure --prefix=/${EURYSPACE_DESTINATION}/tools && make -j${EURYSPACE_BUILD_PARALLELISM} && make install"
+  # Test: launch binary / Result: version of the simulator
+  su ${EURYSPACE_USER} -c "ghdl --version"
+# --enable-languages=c,vhdl --disable-bootstrap --disable-lto --disable-multilib  
   #OPENOCD
   su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/tools/src && git clone ${EURYSPACE_REPO_OPENOCD}"
-  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/tools/src && mkdir build_openocd && cd build_openocd && ../openocd/configure --prefix=/${EURYSPACE_DESTINATION}/tools  --enable-ftdi --enable-usb_blaster_libftdi && make -j${EURYSPACE_BUILD_PARALLELISM} && make install"
+#FIXME: TODO
+#  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/tools/src && mkdir build_openocd && cd build_openocd && ../openocd/configure --prefix=/${EURYSPACE_DESTINATION}/tools  --enable-ftdi --enable-usb_blaster_libftdi && make -j${EURYSPACE_BUILD_PARALLELISM} && make install"
+  # Test: launch binary / Result: version of the simulator
+#  su ${EURYSPACE_USER} -c "openocd --version"
   #Linux
-  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/linux/src && git clone ${EURYSPACE_REPO_LINUX}"
+  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/linux/src && git clone ${EURYSPACE_REPO_OR1K_LINUX}"
   su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/linux/src && mkdir build_linux && cd build_linux"
   export ARCH=openrisc && export CROSS_COMPILE=or1k-elf-
   # Configure for simulation
