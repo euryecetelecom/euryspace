@@ -15,6 +15,7 @@
 # Changes list:
 # 2017/09/04: initial release
 # 2017/09/30: fix many compilation issues
+# 2017/11/12: add fusesoc package
 ################################
 
 set -x
@@ -136,7 +137,7 @@ then
       yum -y install epel-release
       ### STAGE 0: installation of initial development tools
       echo "Installing required tools"
-      yum -y install glibc-devel gcc gcc-c++ libstdc++-static libstdc++-devel flex bison patch texinfo ncurses-devel libzip-devel expat-devel expat-static elfutils-libelf-devel gperf libftdi libftdi-devel libftdi-c++ libftdi-c++-devel libusb libusb-devel gcc-gnat zlib-devel glib2-devel pixman-devel git wget bzip2 autogen
+      yum -y install glibc-devel gcc gcc-c++ libstdc++-static libstdc++-devel flex bison patch texinfo ncurses-devel libzip-devel expat-devel expat-static elfutils-libelf-devel gperf libftdi libftdi-devel libftdi-c++ libftdi-c++-devel libusb libusb-devel gcc-gnat zlib-devel glib2-devel pixman-devel git wget bzip2 autogen python-pip
     ;;
     ubuntu16)
 #FIXME: packages for ubuntu16
@@ -213,7 +214,9 @@ then
 #GCC_VERSION=or1k-4.9.2
 #LINUX_HEADERS_URL=http://www.kernel.org/pub/linux/kernel/v4.x/linux-4.2.tar.xz
 
-#TODO: fusesoc
+  #Fusesoc
+  su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/tools/src && git clone ${EURYSPACE_REPO_FUSESOC}"
+  cd ${EURYSPACE_DESTINATION}/tools/src/fusesoc && pip install -e
 
   #Icarus
   su ${EURYSPACE_USER} -c "cd ${EURYSPACE_DESTINATION}/tools/src && git clone ${EURYSPACE_REPO_IVERILOG}"

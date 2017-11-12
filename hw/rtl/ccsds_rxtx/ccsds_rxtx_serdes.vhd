@@ -20,6 +20,8 @@
 ---- 2016/10/27: review + add ser2par
 -------------------------------
 
+--TODO: change data pointer use to shift register and counter
+
 -- libraries used
 library ieee;
 use ieee.std_logic_1164.all;

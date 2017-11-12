@@ -28,7 +28,7 @@ entity ccsds_tx_manager is
     generic(
       constant CCSDS_TX_MANAGER_BITS_PER_SYMBOL: integer;
       constant CCSDS_TX_MANAGER_MODULATION_TYPE: integer;
-      constant CCSDS_TX_MANAGER_DATALINK_OVERHEAD_RATIO: integer := 2;
+      constant CCSDS_TX_MANAGER_DATALINK_OVERHEAD_RATIO: integer := 4;
       constant CCSDS_TX_MANAGER_PARALLELISM_MAX_RATIO: integer := 16;
       constant CCSDS_TX_MANAGER_OVERSAMPLING_RATIO: integer;
       constant CCSDS_TX_MANAGER_DATA_BUS_SIZE : integer

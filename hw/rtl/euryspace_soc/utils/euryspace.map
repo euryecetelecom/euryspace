@@ -1,7 +1,7 @@
 BLOCK		START ADDRESS		END ADDRESS
 
-Page_0		0x00000000		0x0004B1ED
-sw.hex		0x00080000		0x000A9ED0
+Page_0		0x00000000		0x00059DFC
+sw.hex		0x00080000		0x000DBDED
 
 
 Configuration device: EP4CE22
@@ -11,6 +11,6 @@ Quad-Serial configuration device dummy clock cycle: 8
 
 Notes:
 
-- Data checksum for this conversion is 0x7A014E25
+- Data checksum for this conversion is 0x775F8FEF
 
 - All the addresses in this file are byte addresses

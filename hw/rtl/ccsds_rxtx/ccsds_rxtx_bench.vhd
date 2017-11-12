@@ -64,10 +64,9 @@ entity ccsds_rxtx_bench is
     CCSDS_RXTX_BENCH_CODER_DIFF0_BITS_PER_CODEWORD: integer := 4;
     CCSDS_RXTX_BENCH_CODER_DIFF0_DATA_BUS_SIZE: integer := 32;
     -- CODER CONVOLUTIONAL
---TODO: 2 TESTS / ONE STATIC WITH PREDIFINED INPUT/ OUTPUT + ONE DYNAMIC WITH RANDOM DATA
     CCSDS_RXTX_BENCH_CODER_CONV0_CONNEXION_VECTORS: std_logic_vector_array := ("1111001", "1011011");
     CCSDS_RXTX_BENCH_CODER_CONV0_CONSTRAINT_SIZE: integer := 7;
-    CCSDS_RXTX_BENCH_CODER_CONV0_DATA_BUS_SIZE: integer := 8; --255
+    CCSDS_RXTX_BENCH_CODER_CONV0_RANDOM_DATA_BUS_SIZE: integer := 255;
     CCSDS_RXTX_BENCH_CODER_CONV0_OPERATING_MODE: integer := 1;
     CCSDS_RXTX_BENCH_CODER_CONV0_OUTPUT_INVERSION: boolean_array := (false, true);
     CCSDS_RXTX_BENCH_CODER_CONV0_RATE_OUTPUT: integer := 2;
@@ -76,6 +75,7 @@ entity ccsds_rxtx_bench is
     CCSDS_RXTX_BENCH_CODER_CONV0_OUTPUT: std_logic_vector := "1011101001001001";
     -- CRC
     CCSDS_RXTX_BENCH_CRC0_DATA: std_logic_vector := x"313233343536373839";
+    CCSDS_RXTX_BENCH_CRC0_RANDOM_DATA_BUS_SIZE: integer:= 8;
     CCSDS_RXTX_BENCH_CRC0_INPUT_BYTES_REFLECTED: boolean := false;
     CCSDS_RXTX_BENCH_CRC0_INPUT_REFLECTED: boolean := false;
     CCSDS_RXTX_BENCH_CRC0_LENGTH: integer := 2;
@@ -124,11 +124,10 @@ entity ccsds_rxtx_bench is
     -- simulation/test parameters
     CCSDS_RXTX_BENCH_BUFFER0_CLK_PERIOD: time := 10 ns;
     CCSDS_RXTX_BENCH_CODER_CONV0_CLK_PERIOD: time := 10 ns;
-    CCSDS_RXTX_BENCH_CODER_CONV0_WORDS_NUMBER: integer := 1000;
+    CCSDS_RXTX_BENCH_CODER_CONV0_WORDS_NUMBER: integer := 100;
     CCSDS_RXTX_BENCH_CODER_DIFF0_CLK_PERIOD: time := 10 ns;
     CCSDS_RXTX_BENCH_CODER_DIFF0_WORDS_NUMBER: integer := 1000;
     CCSDS_RXTX_BENCH_CRC0_CLK_PERIOD: time := 10 ns;
-    CCSDS_RXTX_BENCH_CRC0_RANDOM_DATA_BUS_SIZE: integer:= 8;
     CCSDS_RXTX_BENCH_CRC0_RANDOM_CHECK_NUMBER: integer:= 25;
     CCSDS_RXTX_BENCH_FILTER0_CLK_PERIOD: time := 10 ns;
     CCSDS_RXTX_BENCH_FILTER0_SYMBOL_WORDS_NUMBER: integer := 1000;
@@ -399,6 +398,7 @@ architecture behaviour of ccsds_rxtx_bench is
   constant CCSDS_RXTX_BENCH_MAPPER_BITS_SYMBOLS0_DATA_CLK_PERIOD: time := CCSDS_RXTX_BENCH_MAPPER_BITS_SYMBOLS0_CLK_PERIOD * CCSDS_RXTX_BENCH_MAPPER_BITS_SYMBOLS0_DATA_BUS_SIZE * CCSDS_RXTX_BENCH_MAPPER_BITS_SYMBOLS0_MODULATION_TYPE / (CCSDS_RXTX_BENCH_MAPPER_BITS_SYMBOLS0_BITS_PER_SYMBOL * 2);
   constant CCSDS_RXTX_BENCH_RXTX0_TX_CLK_PERIOD: time := CCSDS_RXTX_BENCH_RXTX0_WB_CLK_PERIOD/8;
   constant CCSDS_RXTX_BENCH_RXTX0_RX_CLK_PERIOD: time := CCSDS_RXTX_BENCH_RXTX0_TX_CLK_PERIOD;
+  constant CCSDS_RXTX_BENCH_CODER_CONV0_DATA_BUS_SIZE: integer := CCSDS_RXTX_BENCH_CODER_CONV0_INPUT'length;
 -- internal variables
   signal bench_ena_buffer0_random_data: std_logic := '0';
   signal bench_ena_coder_conv0_random_data: std_logic := '0';
@@ -447,6 +447,8 @@ architecture behaviour of ccsds_rxtx_bench is
   signal bench_sti_coder_conv0_rst: std_logic;
   signal bench_sti_coder_conv0_dat: std_logic_vector(CCSDS_RXTX_BENCH_CODER_CONV0_DATA_BUS_SIZE-1 downto 0);
   signal bench_sti_coder_conv0_dat_val: std_logic;
+  signal bench_sti_coder_conv0_random_dat: std_logic_vector(CCSDS_RXTX_BENCH_CODER_CONV0_RANDOM_DATA_BUS_SIZE-1 downto 0);
+  signal bench_sti_coder_conv0_random_dat_val: std_logic;
   -- coder differential
   signal bench_sti_coder_diff0_clk: std_logic;
   signal bench_sti_coder_diff0_rst: std_logic;
@@ -529,6 +531,9 @@ architecture behaviour of ccsds_rxtx_bench is
   signal bench_res_coder_conv0_dat: std_logic_vector(CCSDS_RXTX_BENCH_CODER_CONV0_DATA_BUS_SIZE*CCSDS_RXTX_BENCH_CODER_CONV0_RATE_OUTPUT-1 downto 0);
   signal bench_res_coder_conv0_dat_val: std_logic;
   signal bench_res_coder_conv0_bus: std_logic;
+  signal bench_res_coder_conv0_random_dat: std_logic_vector(CCSDS_RXTX_BENCH_CODER_CONV0_RANDOM_DATA_BUS_SIZE*CCSDS_RXTX_BENCH_CODER_CONV0_RATE_OUTPUT-1 downto 0);
+  signal bench_res_coder_conv0_random_dat_val: std_logic;
+  signal bench_res_coder_conv0_random_bus: std_logic;
   -- coder differential
   signal bench_res_coder_diff0_dat: std_logic_vector(CCSDS_RXTX_BENCH_CODER_DIFF0_DATA_BUS_SIZE-1 downto 0);
   signal bench_res_coder_diff0_dat_val: std_logic;
@@ -647,6 +652,25 @@ architecture behaviour of ccsds_rxtx_bench is
         bus_o => bench_res_coder_conv0_bus,
         dat_val_o => bench_res_coder_conv0_dat_val,
         dat_o => bench_res_coder_conv0_dat
+      );
+    coder_convolutionial_001: ccsds_tx_coder_convolutional
+      generic map(
+        CCSDS_TX_CODER_CONV_CONNEXION_VECTORS => CCSDS_RXTX_BENCH_CODER_CONV0_CONNEXION_VECTORS,
+        CCSDS_TX_CODER_CONV_CONSTRAINT_SIZE => CCSDS_RXTX_BENCH_CODER_CONV0_CONSTRAINT_SIZE,
+        CCSDS_TX_CODER_CONV_DATA_BUS_SIZE => CCSDS_RXTX_BENCH_CODER_CONV0_RANDOM_DATA_BUS_SIZE,
+        CCSDS_TX_CODER_CONV_OPERATING_MODE => CCSDS_RXTX_BENCH_CODER_CONV0_OPERATING_MODE,
+        CCSDS_TX_CODER_CONV_OUTPUT_INVERSION => CCSDS_RXTX_BENCH_CODER_CONV0_OUTPUT_INVERSION,
+        CCSDS_TX_CODER_CONV_RATE_OUTPUT => CCSDS_RXTX_BENCH_CODER_CONV0_RATE_OUTPUT,
+        CCSDS_TX_CODER_CONV_SEED => CCSDS_RXTX_BENCH_CODER_CONV0_SEED
+      )
+      port map(
+        clk_i => bench_sti_coder_conv0_clk,
+        rst_i => bench_sti_coder_conv0_rst,
+        dat_val_i => bench_sti_coder_conv0_random_dat_val,
+        dat_i => bench_sti_coder_conv0_random_dat,
+        bus_o => bench_res_coder_conv0_random_bus,
+        dat_val_o => bench_res_coder_conv0_random_dat_val,
+        dat_o => bench_res_coder_conv0_random_dat
       );
     coder_differential_000: ccsds_tx_coder_differential
       generic map(
@@ -1156,20 +1180,18 @@ architecture behaviour of ccsds_rxtx_bench is
     -- bench_sti_coder_conv0_random_data generation
     --=============================================================================
     -- read: bench_ena_coder_conv0_random_data
-    -- write: bench_sti_coder_conv0_dat
+    -- write: bench_sti_coder_conv0_random_dat
     -- r/w: 
     BENCH_STI_CODER_CONV0_DATAP : process
       variable seed1 : positive := CCSDS_RXTX_BENCH_SEED;
       variable seed2 : positive := CCSDS_RXTX_BENCH_SEED*2;
-      variable random : std_logic_vector(CCSDS_RXTX_BENCH_CODER_CONV0_DATA_BUS_SIZE-1 downto 0);
+      variable random : std_logic_vector(CCSDS_RXTX_BENCH_CODER_CONV0_RANDOM_DATA_BUS_SIZE-1 downto 0);
       begin
---        if (bench_ena_coder_conv0_random_data = '1') then
---          sim_generate_random_std_logic_vector(CCSDS_RXTX_BENCH_CODER_CONV0_DATA_BUS_SIZE,seed1,seed2,random);
---          bench_sti_coder_conv0_dat <= random;
---        end if;
---        wait for CCSDS_RXTX_BENCH_CODER_CONV0_CLK_PERIOD;
-          bench_sti_coder_conv0_dat <= CCSDS_RXTX_BENCH_CODER_CONV0_INPUT;
-          wait;
+        if (bench_ena_coder_conv0_random_data = '1') then
+          sim_generate_random_std_logic_vector(CCSDS_RXTX_BENCH_CODER_CONV0_RANDOM_DATA_BUS_SIZE,seed1,seed2,random);
+          bench_sti_coder_conv0_random_dat <= random;
+        end if;
+        wait for CCSDS_RXTX_BENCH_CODER_CONV0_CLK_PERIOD*CCSDS_RXTX_BENCH_CODER_CONV0_RANDOM_DATA_BUS_SIZE;
       end process;
     --=============================================================================
     -- Begin of bench_sti_coder_diff0_datap
@@ -1530,25 +1552,40 @@ architecture behaviour of ccsds_rxtx_bench is
         end if;
       -- behaviour tests:
         report "CODERCONVP: START CONVOLUTIONAL CODER TESTS" severity note;
-        bench_ena_coder_conv0_random_data <= '1';
+        -- present convolutional specific test data
+        bench_sti_coder_conv0_dat <= CCSDS_RXTX_BENCH_CODER_CONV0_INPUT;
         wait for CCSDS_RXTX_BENCH_CODER_CONV0_CLK_PERIOD;
+        for coder_current_bit in 0 to CCSDS_RXTX_BENCH_CODER_CONV0_DATA_BUS_SIZE loop
+          if (coder_current_bit = 0) then
+            bench_sti_coder_conv0_dat_val <= '1';
+          else
+            bench_sti_coder_conv0_dat_val <= '0';
+          end if;
+          wait for CCSDS_RXTX_BENCH_CODER_CONV0_CLK_PERIOD;
+        end loop;
+        if (bench_res_coder_conv0_dat_val = '0') then
+          report "CODERCONVP: KO - Convolutional coder output data is not valid" severity warning;
+        else
+          if (bench_res_coder_conv0_dat = CCSDS_RXTX_BENCH_CODER_CONV0_OUTPUT) then
+            report "CODERCONVP: OK - Convolutional coder output data match" severity note;
+          else
+            report "CODERCONVP: KO - Convolutional coder output data doesn't match" severity warning;
+          end if;
+        end if;
+        -- present convolutional random test data
+        bench_ena_coder_conv0_random_data <= '1';
+        wait for CCSDS_RXTX_BENCH_CODER_CONV0_CLK_PERIOD*CCSDS_RXTX_BENCH_CODER_CONV0_RANDOM_DATA_BUS_SIZE;
         for coder_current_check in 0 to CCSDS_RXTX_BENCH_CODER_CONV0_WORDS_NUMBER-1 loop
-          for coder_current_bit in 0 to CCSDS_RXTX_BENCH_CODER_CONV0_DATA_BUS_SIZE loop
+          for coder_current_bit in 0 to CCSDS_RXTX_BENCH_CODER_CONV0_RANDOM_DATA_BUS_SIZE loop
             if (coder_current_bit = 0) then
-              bench_sti_coder_conv0_dat_val <= '1';
+              bench_sti_coder_conv0_random_dat_val <= '1';
             else
-              bench_sti_coder_conv0_dat_val <= '0';
+              bench_sti_coder_conv0_random_dat_val <= '0';
             end if;
             wait for CCSDS_RXTX_BENCH_CODER_CONV0_CLK_PERIOD;
           end loop;
-          if (bench_res_coder_conv0_dat_val = '0') then
+          if (bench_res_coder_conv0_random_dat_val = '0') then
             report "CODERCONVP: KO - Convolutional coder output data is not valid" severity warning;
-          else
-            if (bench_res_coder_conv0_dat = CCSDS_RXTX_BENCH_CODER_CONV0_OUTPUT) then
-              report "CODERCONVP: OK - Convolutional coder output data match" severity note;
-            else
-              report "CODERCONVP: KO - Convolutional coder output data doesn't match" severity warning;
-            end if;
           end if;
         end loop;
         bench_ena_coder_conv0_random_data <= '0';
@@ -2021,6 +2058,8 @@ architecture behaviour of ccsds_rxtx_bench is
         end if;
         bench_sti_framer0_data_valid <= '0';
         bench_ena_framer0_random_data <= '0';
+--FIXME: WAIT TIME TO BE REVIEWED
+        wait for (FRAME_OUTPUT_CYCLES_REQUIRED*CCSDS_RXTX_BENCH_FRAMER0_CLK_PERIOD);
       -- final state tests:
         if bench_res_framer0_data_valid = '1' then
           if (bench_res_framer0_data((CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH)*8+10 downto (CCSDS_RXTX_BENCH_FRAMER0_DATA_LENGTH+CCSDS_RXTX_BENCH_FRAMER0_FOOTER_LENGTH)*8) = "11111111110") then
@@ -2369,8 +2408,8 @@ architecture behaviour of ccsds_rxtx_bench is
     -- Begin of srrcp
     -- generation of SRRC subsystem unit-tests
     --=============================================================================
-    -- read: 
-    -- write: 
+    -- read: bench_res_srrc0_sam_val, bench_res_srrc0_sam
+    -- write: bench_sti_srrc0_sam, bench_sti_srrc0_sam_val
     -- r/w: 
     SRRCP : process
     constant srrc_zero: std_logic_vector(CCSDS_RXTX_BENCH_SRRC0_SIG_QUANT_DEPTH-1 downto 0) := (others => '0');
@@ -2451,6 +2490,7 @@ architecture behaviour of ccsds_rxtx_bench is
           wait for 400*CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
         end if;
         bench_sti_srrc0_sam_val <= '0';
+        wait for CCSDS_RXTX_BENCH_SRRC0_CLK_PERIOD;
       -- final state tests:
         if (bench_res_srrc0_sam_val = '0') then
           report "SRRCP: OK - Final state - SRRC samples are not valid" severity note;
