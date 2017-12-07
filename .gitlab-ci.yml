@@ -45,8 +45,8 @@ codequality:
     paths: [codeclimate.json]
 
 .deploy: &deploy
-  before_script:
   script:
+    - echo deploy
 
 review:
   <<: *deploy
@@ -54,6 +54,8 @@ review:
   variables:
     APP: review-$CI_COMMIT_REF_NAME
     APP_HOST: $CI_PROJECT_NAME-$CI_ENVIRONMENT_SLUG.$EURYSPACE_DOMAIN
+  script:
+    - echo review
   environment:
     name: review/$CI_COMMIT_REF_NAME
     url: https://$CI_PROJECT_NAME-$CI_ENVIRONMENT_SLUG.$EURYSPACE_DOMAIN
@@ -66,6 +68,8 @@ review:
 stop-review:
   <<: *deploy
   stage: cleanup
+  script:
+    - echo cleanup
   when: manual
   variables:
     APP: review-$CI_COMMIT_REF_NAME
@@ -81,6 +85,8 @@ stop-review:
 staging:
   <<: *deploy
   stage: staging
+  script:
+    - echo staging
   variables:
     APP: staging
     APP_HOST: $CI_PROJECT_NAME-staging.$EURYSPACE_DOMAIN
@@ -93,6 +99,8 @@ staging:
 production:
   <<: *deploy
   stage: production
+  script:
+    - echo production
   variables:
     APP: production
     APP_HOST: $CI_PROJECT_NAME.$EURYSPACE_DOMAIN
