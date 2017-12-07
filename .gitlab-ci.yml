@@ -1,0 +1,106 @@
+image: centos:7
+
+stages:
+  - build
+  - test
+  - review
+  - staging
+  - production
+  - cleanup
+
+variables:
+  EURYSPACE_CI_SERVER=sources.euryecetelecom.com
+  EURYSPACE_DOMAIN=euryspace.org
+
+build:
+  stage: build
+  image: docker:git
+  services:
+    - docker:dind
+  variables:
+    DOCKER_DRIVER: overlay2
+  script:
+    - setup_docker
+
+test:
+  stage: test
+  image: gliderlabs/herokuish:latest
+  before_script: []
+  script:
+    - echo run tests
+  only:
+    - branches
+
+codequality:
+  image: docker:latest
+  variables:
+    DOCKER_DRIVER: overlay2
+  allow_failure: true
+  services:
+    - docker:dind
+  script:
+    - setup_docker
+    - codeclimate
+  artifacts:
+    paths: [codeclimate.json]
+
+.deploy: &deploy
+  before_script:
+  script:
+
+review:
+  <<: *deploy
+  stage: review
+  variables:
+    APP: review-$CI_COMMIT_REF_NAME
+    APP_HOST: $CI_PROJECT_NAME-$CI_ENVIRONMENT_SLUG.$EURYSPACE_DOMAIN
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: https://$CI_PROJECT_NAME-$CI_ENVIRONMENT_SLUG.$EURYSPACE_DOMAIN
+    on_stop: stop-review
+  only:
+    - branches
+  except:
+    - master
+
+stop-review:
+  <<: *deploy
+  stage: cleanup
+  script:
+  when: manual
+  variables:
+    APP: review-$CI_COMMIT_REF_NAME
+    GIT_STRATEGY: none
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    action: stop
+  only:
+    - branches
+  except:
+    - master
+
+staging:
+  <<: *deploy
+  stage: staging
+  variables:
+    APP: staging
+    APP_HOST: $CI_PROJECT_NAME-staging.$EURYSPACE_DOMAIN
+  environment:
+    name: staging
+    url: https://$CI_PROJECT_NAME-staging.$EURYSPACE_DOMAIN
+  only:
+    - master
+
+production:
+  <<: *deploy
+  stage: production
+  variables:
+    APP: production
+    APP_HOST: $CI_PROJECT_NAME.$EURYSPACE_DOMAIN
+  when: manual
+  environment:
+    name: production
+    url: https://$CI_PROJECT_NAME.$EURYSPACE_DOMAIN
+  only:
+    - master
+
