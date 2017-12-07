@@ -9,8 +9,8 @@ stages:
   - cleanup
 
 variables:
-  EURYSPACE_CI_SERVER=sources.euryecetelecom.com
-  EURYSPACE_DOMAIN=euryspace.org
+  EURYSPACE_CI_SERVER: sources.euryecetelecom.com
+  EURYSPACE_DOMAIN: euryspace.org
 
 build:
   stage: build
