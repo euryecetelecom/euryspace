@@ -66,7 +66,6 @@ review:
 stop-review:
   <<: *deploy
   stage: cleanup
-  script:
   when: manual
   variables:
     APP: review-$CI_COMMIT_REF_NAME
