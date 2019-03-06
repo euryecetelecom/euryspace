@@ -11,12 +11,6 @@
 ---- Licence:
 ---- MIT
 -------------------------------
----- Changes list:
----- 2015/12/28: initial release
----- 2016/10/20: added reverse_std_logic_vector function + rework sim_generate_random_std_logic_vector for > 32 bits vectors
----- 2016/11/17: added convert_boolean_to_std_logic function
----- 2017/01/15: added convert_std_logic_vector_array_to_std_logic_vector
--------------------------------
 
 -- libraries used
 library ieee;

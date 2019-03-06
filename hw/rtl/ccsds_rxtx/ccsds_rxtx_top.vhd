@@ -15,10 +15,6 @@
 ---- Licence:
 ---- MIT
 -------------------------------
----- Changes list:
----- 2016/02/26: initial release - only basic RX-TX capabilities through direct R/W on WB Bus / no dynamic configuration capabilities
----- 2016/10/18: major rework / implementation of new architecture
--------------------------------
 -- TODO: additionnal modulations: ASK, FSK, GMSK, OFDM, CDMA
 -- TODO: dynamic modulation and coding
 

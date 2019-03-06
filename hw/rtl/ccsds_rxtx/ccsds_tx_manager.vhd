@@ -11,11 +11,6 @@
 ---- Licence:
 ---- MIT
 -------------------------------
----- Changes list:
----- 2016/10/16: initial release
----- 2016/10/31: add serdes sub-component
----- 2016/11/05: add clock generator sub-component
--------------------------------
 
 -- libraries used
 library ieee;

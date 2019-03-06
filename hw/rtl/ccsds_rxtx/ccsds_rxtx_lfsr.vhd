@@ -15,9 +15,6 @@
 ---- Licence:
 ---- MIT
 -------------------------------
----- Changes list:
----- 2016/11/05: initial release
--------------------------------
 -- Test ressources:
 -- GNURADIO GLFSR block
 

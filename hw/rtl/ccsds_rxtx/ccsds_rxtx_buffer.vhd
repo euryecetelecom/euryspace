@@ -15,10 +15,6 @@
 ---- Licence:
 ---- MIT
 -------------------------------
----- Changes list:
----- 2016/02/27: initial release
----- 2016/10/20: major corrections and optimizations
--------------------------------
 
 -- libraries used
 library ieee;

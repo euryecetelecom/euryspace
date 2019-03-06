@@ -166,3 +166,10 @@ FIXME: TBD / variables / functions / comments / ...
 -------------------------------
 FIXME: TBD / HW and SW requirements, OS setup, build, install, test
 -------------------------------
+1. Development environment setup
+1.1 Get sources
+git clone https://sources.euryecetelecom.com/euryspace/euryspace.git
+1.2 Install development tools
+cd euryspace
+bash euryspace -a install -e dev -o centos7 | bash euryspace -a install -e dev -o debian9
+-------------------------------

@@ -11,10 +11,6 @@
 ---- Licence:
 ---- MIT
 -------------------------------
----- Changes list:
----- 2015/11/17: initial release
----- 2016/10/20: rework / remove non-systems parameters / each component has his own parameters set at proper level
--------------------------------
 
 -- libraries used
 library ieee;

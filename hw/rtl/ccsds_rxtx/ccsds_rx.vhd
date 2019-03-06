@@ -11,9 +11,6 @@
 ---- Licence:
 ---- MIT
 -------------------------------
----- Changes list:
----- 2015/11/17: initial release
--------------------------------
 
 -- libraries used
 library ieee;

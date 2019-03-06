@@ -15,9 +15,6 @@
 ---- Licence:
 ---- MIT
 -------------------------------
----- Changes list:
----- 2016/11/06: initial release
--------------------------------
 -- Filter impulse response - SRRC(t):
 -- t = 0 => SRRC(0) = (1-B + 4*B/PI)
 -- t = +/-Ts/(4*B) => SRRC(+/-Ts/(4*B)) = (B/racine(2) * (1+2/PI) * sin(PI/(4*B)) + (1-2/PI) * cos(PI/(4*B)))

@@ -16,11 +16,6 @@
 ---- Licence:
 ---- MIT
 -------------------------------
----- Changes list:
----- 2016/10/18: initial release
----- 2016/10/25: external padding data mode
----- 2016/10/30: ressources usage optimization
--------------------------------
 --TODO: Implement DIRECT computation?
 --TODO: CRC LENGTH not being multiple of Byte
 

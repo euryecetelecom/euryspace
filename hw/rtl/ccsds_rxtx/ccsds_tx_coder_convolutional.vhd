@@ -9,9 +9,6 @@
 ---- Licence:
 ---- MIT
 -------------------------------
----- Changes list:
----- 2017/01/15: initial release
--------------------------------
 -- TODO: puncturation + input rate /= 1
 
 -- libraries used

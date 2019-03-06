@@ -11,10 +11,6 @@
 ---- Licence:
 ---- MIT
 -------------------------------
----- Changes list:
----- 2015/11/17: initial release
----- 2016/10/21: rework based on TX final architecture
--------------------------------
 
 -- libraries used
 library ieee;

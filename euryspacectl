@@ -5,17 +5,13 @@
 # Version: 1.0.0
 # Description:
 # EurySPACE management tool
-# Validated on CentOS 7
-# TODO: Ubuntu 16 LTS
+# Validated on CentOS 7 and Debian 9
 ################################
 # Author(s):
 # Guillaume REMBERT
 ################################
 # Licence:
 # MIT
-################################
-# Changes list:
-# 2017/09/04: initial release
 ################################
 
 #Conf for sources / builds
@@ -32,23 +28,27 @@ function show_help {
   echo "ACTION: install"
   echo "DESTINATION: destination folder (default: /home/euryspace)"
   echo "ENVIRONMENT: dev|development, prod|production (default value)"
-  echo "OPERATING_SYSTEM: centos7 (default value), ubuntu16"
+  echo "OPERATING_SYSTEM: centos7 (default value), debian9"
   echo "TARGET: all (default value), space|space_segment, ground|ground_segment, user|user_segment"
   echo "USER: user used to start (default: astronaut)"
 }
 
 START_TIME=$(date +%s)
 
-####################
-# SCRIPT VARIABLES #
-####################
+#####################################
+# SCRIPT VARIABLES + DEFAULT VALUES #
+#####################################
+
 EURYSPACE_PRODUCTION=true
 EURYSPACE_OPERATING_SYSTEM="centos7"
 EURYSPACE_USER="astronaut"
+EURYSPACE_DESTINATION="/home/euryspace"
+EURYSPACE_BUILD_PARALLELISM=2
 
 #########################
 # SCRIPT INITIALISATION #
 #########################
+
 #Check script is run as root
 if [[ $EUID -ne 0 ]]; then
   echo "This script must be run as root" 1>&2
@@ -60,7 +60,7 @@ SCRIPT_PATH=$(dirname "$SCRIPT_COMMAND")
 #Should not be changed except if you changed sw folder layout
 SCRIPT_CONF_PATH=$SCRIPT_PATH/cfg/sw/euryspace.conf
 #Get input parameters
-while getopts :a:e:ht: ARGUMENT
+while getopts :a:e:ho:t: ARGUMENT
 do
   case "${ARGUMENT}" in
     a) SCRIPT_ACTION=${OPTARG}
@@ -97,7 +97,7 @@ do
     ;;
     o) EURYSPACE_OPERATING_SYSTEM=${OPTARG}
       case "${EURYSPACE_OPERATING_SYSTEM}" in
-        ubuntu16|centos7)
+        debian9|centos7)
         ;;
         *)
           echo "Unmanaged operating system: ${EURYSPACE_OPERATING_SYSTEM}" 1>&2
@@ -116,10 +116,18 @@ do
     ;;
   esac
 done
+if [ $OPTIND -eq 1 ]; then
+  show_help
+  exit 1
+fi
+
+####################
+# SCRIPT EXECUTION #
+####################
 
 case "${SCRIPT_ACTION}" in
   install)
-    $SCRIPT_PATH/sw/src/tools/euryspace_install.sh ${EURYSPACE_OPERATING_SYSTEM} ${EURYSPACE_PRODUCTION} ${EURYSPACE_USER} ${EURYSPACE_DESTINATION}
+    $SCRIPT_PATH/sw/src/tools/euryspace_install.sh ${EURYSPACE_OPERATING_SYSTEM} ${EURYSPACE_PRODUCTION} ${EURYSPACE_USER} ${EURYSPACE_DESTINATION} ${EURYSPACE_BUILD_PARALLELISM}
   ;;
 esac
 

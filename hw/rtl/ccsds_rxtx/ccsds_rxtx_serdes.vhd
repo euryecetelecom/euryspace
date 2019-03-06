@@ -15,11 +15,6 @@
 ---- Licence:
 ---- MIT
 -------------------------------
----- Changes list:
----- 2015/11/18: initial release
----- 2016/10/27: review + add ser2par
--------------------------------
-
 --TODO: change data pointer use to shift register and counter
 
 -- libraries used

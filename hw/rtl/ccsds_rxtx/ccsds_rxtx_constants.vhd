@@ -11,9 +11,6 @@
 ---- Licence:
 ---- MIT
 -------------------------------
----- Changes list:
----- 2015/11/17: initial release
--------------------------------
 
 package ccsds_rxtx_constants is
 	constant RXTX_CST: integer := 1; -- DUMMY USELESS CONSTANT
