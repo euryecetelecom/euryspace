@@ -194,7 +194,7 @@ install_tools(){
   #GHDL
   if ! command -v ghdl --version > /dev/null; then
     if ! test -e ${EURYSPACE_DESTINATION}/tools/src/gcc ; then
-      cd ${EURYSPACE_DESTINATION}/tools/src && git clone --depth=1 ${EURYSPACE_REPO_GCC} && cd gcc && git checkout gcc-7_2_0-release
+      cd ${EURYSPACE_DESTINATION}/tools/src && git clone --branch=gcc-7_2_0-release --depth=1 ${EURYSPACE_REPO_GCC} && cd gcc && git checkout gcc-7_2_0-release
     fi
     if ! test -e ${EURYSPACE_DESTINATION}/tools/src/ghdl ; then
       cd ${EURYSPACE_DESTINATION}/tools/src && git clone --depth=1 ${EURYSPACE_REPO_GHDL}
@@ -252,6 +252,7 @@ then
       apt-get install -y build-essential glibc-source gcc g++ libstdc++6 libstdc++-6-dev flex bison patch texinfo libncurses5 libzip-dev libexpat1 libexpat1-dev libelf1 gperf libftdi1 libftdi1-dev libftdipp1-2v5 libftdipp1-dev libusb-1.0-0 libusb-1.0-0-dev gnat-6 zlib1g-dev libglib2.0-dev libpixman-1-dev git wget bzip2 autogen python-pip dejagnu libtool automake iverilog openocd
     ;;
   esac
+  pip install --upgrade pip setuptools
   pip install fusesoc
   #Preparing target path and enviroment
   echo "Preparing target build directories and environment setup"

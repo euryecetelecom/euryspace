@@ -13,6 +13,7 @@
 # Licence:
 # MIT
 ################################
+#TODO: check free space available (10 Go)
 
 #Conf for sources / builds
 #Install environment (dev / prod) + all / only sub-parts

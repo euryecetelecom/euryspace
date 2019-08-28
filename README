@@ -43,7 +43,10 @@ Read these lines to build, install and start the system.
 -------------------------------
  PART 0 - PROJECT PRESENTATION
 -------------------------------
-FIXME: TBD / Features, supported platforms, etc
+Software and hardware solution to provide telecommunication capabilities following CCSDS recommendations.
+
+- Embedded part (Space Segment): RX-TX SOC based on OpenRISC and Linux
+- Fixed facilities part (Ground Segment): RX-TX based on GNURadio and Linux
 -------------------------------
 
 
@@ -166,6 +169,10 @@ FIXME: TBD / variables / functions / comments / ...
 -------------------------------
 FIXME: TBD / HW and SW requirements, OS setup, build, install, test
 -------------------------------
+Supported development environments: Debian 9 - CentOS 7
+Supported FPGA targets: Altera and Xilinx
+Supported SDR devices: USRP devices and Hack-RF
+
 1. Development environment setup
 1.1 Get sources
 git clone https://sources.euryecetelecom.com/euryspace/euryspace.git
